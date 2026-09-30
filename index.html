@@ -161,6 +161,8 @@
   #datesSheet .occ .st{background:none;padding:0;font-size:12px;font-weight:500}
   #datesSheet .st.pend{color:var(--muted-2)}
   #datesSheet .occ.cur{background:#FFF9DD}
+  #datesSheet .occ.skipped{opacity:.45}
+  #datesSheet .occ.skipped b{text-decoration:line-through}
   #datesSheet .btn{font-weight:500;height:50px}
   .item.done .count{opacity:.5}
   .toggle{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:14px}
@@ -309,6 +311,16 @@
   <button class="btn ghost" id="cancelBtn">Cancelar</button>
 </div>
 
+<!-- Confirmar eliminación -->
+<div class="sheet" id="delSheet">
+  <div class="grab"></div>
+  <h3 id="delTitle">¿Eliminar tarea?</h3>
+  <div class="occ-sub" id="delSub"></div>
+  <button class="btn danger" id="delOne">Solo esta</button>
+  <button class="btn danger" id="delFuture">Esta y todas las futuras</button>
+  <button class="btn ghost" id="delCancel">Cancelar</button>
+</div>
+
 <!-- Fechas de repeticiones -->
 <div class="sheet" id="datesSheet">
   <div class="grab"></div>
@@ -383,9 +395,9 @@ function occursOn(t,day){
 function isDone(t,key){return !!(t.done&&t.done[key])}
 /* Claves originales de las repeticiones que caen en este día (respetando las movidas) */
 function keysOn(t,day){
-  const k=ymd(day),out=[],mv=t.moved||{};
-  if(occursOn(t,day)&&!mv[k])out.push(k);
-  for(const o in mv)if(mv[o]===k&&o!==k&&occursOn(t,parseYmd(o)))out.push(o);
+  const k=ymd(day),out=[],mv=t.moved||{},sk=t.skip||{};
+  if(occursOn(t,day)&&!mv[k]&&!sk[k])out.push(k);
+  for(const o in mv)if(mv[o]===k&&o!==k&&!sk[o]&&occursOn(t,parseYmd(o)))out.push(o);
   return out;
 }
 const effDate=(t,key)=>(t.moved&&t.moved[key])||key;
@@ -599,6 +611,7 @@ function shiftSeries(t,n){
   t.date=sh(t.date);
   const mv={};for(const k in t.moved||{})mv[sh(k)]=sh(t.moved[k]);t.moved=mv;
   const dn={};for(const k in t.done||{})dn[sh(k)]=t.done[k];t.done=dn;
+  const sk={};for(const k in t.skip||{})sk[sh(k)]=1;t.skip=sk;
 }
 function openForm(id,key){
   editId=id||null;editKey=key||null;const t=data.find(x=>x.id===id);
@@ -638,7 +651,7 @@ $('saveBtn').onclick=()=>{
   const moved={...(old?.moved||{})};
   const cur=keepSeries?effDate(old,editKey):null,delta=keepSeries?dayDiff(parseYmd(date),parseYmd(cur)):0;
   if(keepSeries&&scope==='one'){if(date===editKey)delete moved[editKey];else moved[editKey]=date}
-  const rec={id:editId||newId(),title,date:keepSeries?old.date:date,moved:formEvery?moved:{},time:$('fTime').value,
+  const rec={id:editId||newId(),title,date:keepSeries?old.date:date,moved:formEvery?moved:{},skip:formEvery?{...(old?.skip||{})}:{},time:$('fTime').value,
     repeat:formEvery?'every':'none',every:formEvery||0,times:formEvery?times:1,
     alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),done:old?.done||{}};
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
@@ -658,10 +671,48 @@ $('tomorrowBtn').onclick=()=>{
   const base=parseYmd(t.date)<todayD()?todayD():parseYmd(t.date);
   t.date=ymd(addDays(base,1));t.done={};save();closeSheets();render();toast('Pasada a '+fDay(parseYmd(t.date)));
 };
+function removeTask(t,msg){
+  const idx=data.indexOf(t);data.splice(idx,1);save();closeSheets();render();
+  toast(msg||'Tarea eliminada',()=>{data.splice(idx,0,t);save();render()});
+}
+function withUndo(t,fn,msg){
+  const snap=JSON.stringify(t);fn();save();closeSheets();render();
+  toast(msg,()=>{const i=data.findIndex(x=>x.id===t.id),o=JSON.parse(snap);if(i>=0)data[i]=o;else data.push(o);save();render()});
+}
 $('delBtn').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
-  const idx=data.indexOf(t);data.splice(idx,1);save();closeSheets();render();
-  toast('Tarea eliminada',()=>{data.splice(idx,0,t);save();render()});
+  const rep=occMode;
+  $('delTitle').textContent=rep?'¿Qué quieres eliminar?':'¿Eliminar esta tarea?';
+  const eff=rep?parseYmd(effDate(t,editKey)):parseYmd(t.date);
+  $('delSub').textContent=`${t.title} · ${fWeekday(eff)}`;
+  $('delOne').textContent=rep?'Solo esta':'Sí, eliminar';
+  $('delFuture').style.display=rep?'block':'none';
+  $('formSheet').classList.remove('show');
+  openSheet('delSheet');
+};
+$('delCancel').onclick=()=>{$('delSheet').classList.remove('show');$('formSheet').classList.add('show')};
+$('delOne').onclick=()=>{
+  const t=data.find(x=>x.id===editId);if(!t)return;
+  if(!occMode){removeTask(t);return}
+  // ¿quedan otras repeticiones vivas?
+  const all=t.repeat==='every'?[...Array(t.times||1)].map((_,i)=>ymd(addDays(parseYmd(t.date),i*(t.every||1)))):null;
+  if(all&&all.every(k=>k===editKey||(t.skip&&t.skip[k]))){removeTask(t);return}
+  withUndo(t,()=>{t.skip=t.skip||{};t.skip[editKey]=1;if(t.done)delete t.done[editKey]},'Se eliminó solo esta repetición');
+};
+$('delFuture').onclick=()=>{
+  const t=data.find(x=>x.id===editId);if(!t)return;
+  const key=parseYmd(editKey);
+  if(t.repeat==='every'){
+    const n=occIndex(t,key);
+    if(n<=1){removeTask(t,'Tarea y repeticiones eliminadas');return}
+    withUndo(t,()=>{t.times=n-1;const last=ymd(lastDate(t));
+      for(const o in (t.moved||{}))if(o>last)delete t.moved[o];
+      for(const o in (t.skip||{}))if(o>last)delete t.skip[o];},
+      `Eliminada esta y las siguientes (quedan ${n-1})`);
+  }else{
+    if(sameDay(key,parseYmd(t.date))){removeTask(t,'Tarea y repeticiones eliminadas');return}
+    withUndo(t,()=>{t.until=ymd(addDays(key,-1))},'Eliminada esta y las siguientes');
+  }
 };
 $('cancelBtn').onclick=closeSheets;$('backdrop').onclick=closeSheets;
 
@@ -695,6 +746,7 @@ function openDates(id,curKey){
   const start=parseYmd(t.date),today=todayD();let done=0,html='';
   for(let i=0;i<(t.times||1);i++){
     const k=ymd(addDays(start,i*(t.every||1))),eff=parseYmd(effDate(t,k)),ok=isDone(t,k);
+    if(t.skip&&t.skip[k]){html+=`<div class="occ skipped"><span class="num">${i+1}</span><span class="od"><b>${fWeekday(parseYmd(k))}</b></span><span class="st pend">Eliminada</span></div>`;continue}
     if(ok)done++;
     const late=!ok&&eff<today,cls=ok?'ok':late?'late':'';
     const st=ok?'<span class="st ok">Hecha</span>':late?'<span class="st late">Atrasada</span>':'<span class="st pend">Pendiente</span>';
@@ -722,7 +774,7 @@ $('mDone').onclick=()=>{
   const before=data.length;
   data=data.filter(t=>{
     if(!isRep(t))return !isDone(t,t.date);
-    if(t.repeat==='every'){const b=parseYmd(t.date);for(let i=0;i<(t.times||1);i++){if(!isDone(t,ymd(addDays(b,i*(t.every||1)))))return true}return false}
+    if(t.repeat==='every'){const b=parseYmd(t.date);for(let i=0;i<(t.times||1);i++){const k=ymd(addDays(b,i*(t.every||1)));if(!isDone(t,k)&&!(t.skip&&t.skip[k]))return true}return false}
     return true;});
   save();closeSheets();render();toast(`${before-data.length} tarea(s) completada(s) borradas`);
 };
