@@ -185,6 +185,28 @@
   .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:15px;opacity:0;transition:.25s;z-index:60;max-width:90vw;text-align:center;display:flex;gap:14px;align-items:center;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
   .toast button{background:none;border:none;color:#9DB4FF;font-weight:800;font-size:15px;padding:0}
+
+  /* Editar tarea: versión compacta */
+  #formSheet{padding:8px 16px calc(16px + env(safe-area-inset-bottom))}
+  #formSheet .grab{margin:2px auto 8px}
+  #formSheet h3{font-size:17px;font-weight:700;margin-bottom:4px}
+  #formSheet label.f{font-size:13px;font-weight:600;margin:10px 0 5px;color:var(--muted)}
+  #formSheet .inp{height:42px;font-size:15px;border-radius:11px;padding:0 12px}
+  #formSheet select.inp{padding:0 10px}
+  #formSheet textarea.inp{height:64px;padding:9px 12px}
+  #formSheet .row{gap:10px}
+  #formSheet .toggle{margin-top:12px;padding:8px 12px;border-radius:11px}
+  #formSheet .toggle span{font-size:14px;font-weight:500}
+  #formSheet .sw-t{width:42px;height:25px}
+  #formSheet .sw-t b::after{width:19px;height:19px}
+  #formSheet .sw-t input:checked+b::after{transform:translateX(17px)}
+  #formSheet .stepper{grid-template-columns:42px 1fr 42px;gap:6px}
+  #formSheet .stepper button{height:42px;font-size:20px;border-radius:11px}
+  #formSheet .stepper .inp{font-size:16px}
+  #formSheet .seg6 button{height:38px;font-size:13px;border-radius:10px}
+  #formSheet .hint{font-size:12px;margin-top:4px}
+  #formSheet .btn{height:44px;font-size:15px;border-radius:11px;margin-top:8px}
+  #formSheet .btn.primary{margin-top:14px}
 </style>
 </head>
 <body>
