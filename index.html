@@ -275,11 +275,47 @@
     <label class="sw-t"><input type="checkbox" id="fRep"><b></b></label>
   </div>
   <div id="timesWrap">
+    <label class="f" for="fType">Tipo de repetición</label>
+    <select class="inp" id="fType">
+      <option value="every">Cada cierto número de días</option>
+      <option value="week">Cada semana</option>
+      <option value="fortnight">Cada quincena</option>
+      <option value="month">Cada mes</option>
+      <option value="year">Cada año</option>
+    </select>
+    <div id="wWeek" class="rw">
+      <label class="f" for="fWday">Qué día de la semana</label>
+      <select class="inp" id="fWday">
+        <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+        <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="0">Domingo</option>
+      </select>
+    </div>
+    <div id="wFort" class="rw">
+      <label class="f">Qué días del mes</label>
+      <div class="row">
+        <select class="inp" id="fD1" aria-label="Primer día"></select>
+        <select class="inp" id="fD2" aria-label="Segundo día"></select>
+      </div>
+    </div>
+    <div id="wMonth" class="rw">
+      <label class="f" for="fMday">Qué día del mes</label>
+      <select class="inp" id="fMday"></select>
+    </div>
+    <div id="wYear" class="rw">
+      <label class="f">Qué día del año</label>
+      <div class="row">
+        <select class="inp" id="fYday" aria-label="Día"></select>
+        <select class="inp" id="fYmon" aria-label="Mes"></select>
+      </div>
+    </div>
+    <div class="hint" id="shortHint" style="display:none">Si el mes no tiene ese día, se usa el último día del mes.</div>
+    <div id="wEvery" class="rw">
     <label class="f" for="fEvery">Repetir cada (días)</label>
     <div class="stepper">
       <button type="button" id="eMinus" aria-label="Menos días">−</button>
       <input class="inp" type="number" id="fEvery" min="1" max="30" inputmode="numeric">
       <button type="button" id="ePlus" aria-label="Más días">+</button>
+    </div>
     </div>
     <label class="f" for="fTimes">Número de veces a repetir</label>
     <div class="stepper">
@@ -371,12 +407,50 @@ const todayD=()=>startDay(new Date());
 const dayDiff=(a,b)=>Math.round((startDay(a)-startDay(b))/864e5);
 /* Número de repetición (1..times) de la tarea en ese día, o 0 si no toca */
 function occIndex(t,day){
-  if(t.repeat!=='every')return 0;
+  if(!isRule(t))return 0;
+  return occMap(t).get(ymd(day))||0;
   const diff=dayDiff(day,parseYmd(t.date)),e=t.every||1;
   if(diff<0||diff%e)return 0;
   const n=diff/e+1;return n<=(t.times||1)?n:0;
 }
-function lastDate(t){return addDays(parseYmd(t.date),(t.every||1)*((t.times||1)-1))}
+function lastDate(t){const l=genList(t);return parseYmd(l[l.length-1]||t.date)}
+const RULES=['every','week','fortnight','month','year'];
+const isRule=t=>RULES.includes(t.repeat);
+const dimOf=(y,m)=>new Date(y,m+1,0).getDate();
+const _cache=new Map();
+/* Lista de fechas (claves) de todas las repeticiones de una tarea */
+function genList(t){
+  const sig=[t.repeat,t.date,t.every,t.times,t.wday,t.d1,t.d2,t.mday,t.month].join('|');
+  const c=_cache.get(t.id);if(c&&c.sig===sig)return c.list;
+  const out=[],s=parseYmd(t.date),N=Math.max(1,t.times||1);
+  const push=d=>{if(d>=s&&out.length<N)out.push(ymd(d))};
+  if(t.repeat==='every'){for(let i=0;i<N;i++)out.push(ymd(addDays(s,i*(t.every||1))))}
+  else if(t.repeat==='week'){let d=new Date(s);while(d.getDay()!==(+t.wday))d=addDays(d,1);for(let i=0;i<N;i++)out.push(ymd(addDays(d,7*i)))}
+  else{
+    let y=s.getFullYear(),m=s.getMonth(),guard=0;
+    while(out.length<N&&guard++<2000){
+      const dim=dimOf(y,m);
+      if(t.repeat==='fortnight'){[...new Set([t.d1,t.d2].map(v=>Math.min(+v||1,dim)))].sort((a,b)=>a-b).forEach(v=>push(new Date(y,m,v)))}
+      else if(t.repeat==='month'){push(new Date(y,m,Math.min(+t.mday||1,dim)))}
+      else if(t.repeat==='year'){if(m===(+t.month))push(new Date(y,m,Math.min(+t.mday||1,dim)))}
+      if(t.repeat==='year'){y++;m=+t.month}else{m++;if(m>11){m=0;y++}}
+    }
+  }
+  const map=new Map(out.map((k,i)=>[k,i+1]));
+  _cache.set(t.id,{sig,list:out,map});return out;
+}
+function occMap(t){genList(t);return _cache.get(t.id).map}
+const MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function ruleText(t){
+  switch(t.repeat){
+    case 'every':return t.every===1?'Diaria':'Cada '+t.every+' días';
+    case 'week':return 'Cada '+DIA[+t.wday];
+    case 'fortnight':return `Quincenal · días ${t.d1} y ${t.d2}`;
+    case 'month':return 'Cada mes, día '+t.mday;
+    case 'year':return `Cada año, ${t.mday} de ${MES[+t.month]}`;
+  }return '';
+}
 const isRep=t=>t.repeat&&t.repeat!=='none';
 
 /* ¿La tarea toca este día? */
@@ -384,7 +458,7 @@ function occursOn(t,day){
   const b=parseYmd(t.date);if(day<b)return false;
   if(t.until&&ymd(day)>t.until)return false;
   switch(t.repeat){
-    case 'every':return occIndex(t,day)>0;
+    case 'every':case 'week':case 'fortnight':case 'month':case 'year':return occIndex(t,day)>0;
     case 'daily':return true;
     case 'weekdays':{const w=day.getDay();return w>0&&w<6}
     case 'weekly':return day.getDay()===b.getDay();
@@ -480,8 +554,8 @@ function cardHTML(x){
   if(x.late)meta+=`<span class="red">Atrasada · ${fDayShort(x.day)}</span>`;
   if(x.showDate&&!x.late)meta+=`<span>${fDayShort(x.day)}</span>`;
   if(t.time)meta+=`<span>${I.clock}${fTime(t.time)}</span>`;
-  if(t.repeat==='every'){
-    meta+=`<span>${I.rep}${t.every===1?'Diaria':'Cada '+t.every+' días'}</span>`;
+  if(isRule(t)){
+    meta+=`<span>${I.rep}${ruleText(t)}</span>`;
     const n=x.key!=='__'?occIndex(t,parseYmd(x.key)):0;
     badge=`<button class="count" data-id="${t.id}" data-k="${x.key}" aria-label="Ver fechas">${n?n+' de '+t.times:t.times+' veces'}</button>`;
   }else if(isRep(t))meta+=`<span>${I.rep}${REP_TXT[t.repeat]}</span>`;
@@ -570,20 +644,51 @@ function openSheet(id){$('backdrop').classList.add('show');$(id).classList.add('
 function closeSheets(){$('backdrop').classList.remove('show');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'))}
 let formEvery=0;
 const clampE=v=>Math.max(1,Math.min(30,Math.round(+v)||1));
-function readEvery(){formEvery=$('fRep').checked?clampE($('fEvery').value):0}
+function readEvery(){formEvery=$('fRep').checked?($('fType').value==='every'?clampE($('fEvery').value):1):0}
+(()=>{const o=n=>[...Array(n)].map((_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  $('fD1').innerHTML=o(31);$('fD2').innerHTML=o(31);$('fMday').innerHTML=o(31);$('fYday').innerHTML=o(31);
+  $('fYmon').innerHTML=MES.map((m,i)=>`<option value="${i}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('');})();
+function paintType(){
+  const ty=$('fType').value;
+  $('wEvery').style.display=ty==='every'?'block':'none';
+  $('wWeek').style.display=ty==='week'?'block':'none';
+  $('wFort').style.display=ty==='fortnight'?'block':'none';
+  $('wMonth').style.display=ty==='month'?'block':'none';
+  $('wYear').style.display=ty==='year'?'block':'none';
+  $('shortHint').style.display=['fortnight','month','year'].includes(ty)?'block':'none';
+}
+/* Regla que está armada en el formulario */
+function formRule(start){
+  const ty=$('fType').value;
+  return {id:'__form',repeat:ty,date:start,every:clampE($('fEvery').value),times:Math.max(1,Math.min(365,+$('fTimes').value||1)),
+    wday:+$('fWday').value,d1:+$('fD1').value,d2:+$('fD2').value,mday:+(ty==='year'?$('fYday').value:$('fMday').value),month:+$('fYmon').value};
+}
+function presetFromDate(){
+  const d=$('fDate').value?parseYmd($('fDate').value):new Date();
+  $('fWday').value=d.getDay();$('fMday').value=d.getDate();$('fYday').value=d.getDate();$('fYmon').value=d.getMonth();
+  const a=d.getDate()<=15?d.getDate():d.getDate()-15;$('fD1').value=a;$('fD2').value=Math.min(a+15,31);
+}
+$('fType').onchange=()=>{
+  const def={every:7,week:8,fortnight:6,month:12,year:3}[$('fType').value];
+  $('fTimes').value=def;paintType();updateTimesHint();
+};
+['fWday','fD1','fD2','fMday','fYday','fYmon'].forEach(id=>$(id).onchange=updateTimesHint);
 function paintEvery(){
   $('timesWrap').style.display=$('fRep').checked?'block':'none';
+  paintType();
   readEvery();updateTimesHint();
 }
 function updateTimesHint(){
   readEvery();
   if(!formEvery||!$('fDate').value){$('timesHint').textContent='';return}
-  const n=Math.max(1,Math.min(365,+$('fTimes').value||1));
-  const last=addDays(parseYmd(occMode?seriesStart:$('fDate').value),formEvery*(n-1));
-  $('timesHint').textContent=n===1?'Solo una vez.':`${n} veces, cada ${formEvery===1?'día':formEvery+' días'}. Última: ${fWeekday(last)}.`;
+  _cache.delete('__form');
+  const r=formRule(occMode?seriesStart:$('fDate').value),l=genList(r);
+  const first=parseYmd(l[0]),last=parseYmd(l[l.length-1]);
+  $('timesHint').textContent=`${ruleText(r)} · ${l.length} ${l.length===1?'vez':'veces'}. `+
+    (l.length===1?`El ${fWeekday(first)}.`:`Primera: ${fWeekday(first)}. Última: ${fWeekday(last)}.`);
 }
 $('fRep').onchange=()=>{
-  if($('fRep').checked){if(!(+$('fEvery').value))$('fEvery').value=1;if((+$('fTimes').value||0)<2)$('fTimes').value=7}
+  if($('fRep').checked){if(!(+$('fEvery').value))$('fEvery').value=1;presetFromDate();if((+$('fTimes').value||0)<2)$('fTimes').value=7}
   paintEvery();
 };
 $('eMinus').onclick=()=>{$('fEvery').value=clampE((+$('fEvery').value||1)-1);updateTimesHint()};
@@ -592,7 +697,7 @@ $('fEvery').oninput=updateTimesHint;
 $('fEvery').onblur=()=>{$('fEvery').value=clampE($('fEvery').value);updateTimesHint()};
 $('tMinus').onclick=()=>{$('fTimes').value=Math.max(1,(+$('fTimes').value||1)-1);updateTimesHint()};
 $('tPlus').onclick=()=>{$('fTimes').value=Math.min(365,(+$('fTimes').value||0)+1);updateTimesHint()};
-$('fTimes').oninput=updateTimesHint;$('fDate').onchange=updateTimesHint;
+$('fTimes').oninput=updateTimesHint;$('fDate').onchange=()=>{if(!occMode&&$('fRep').checked&&!editId)presetFromDate();updateTimesHint()};
 let editKey=null,occMode=false,seriesStart=null,scope='one',occN=0;
 function paintScope(){
   document.querySelectorAll('#scopeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s===scope));
@@ -605,6 +710,21 @@ function paintScope(){
   }
 }
 document.querySelectorAll('#scopeSeg button').forEach(b=>b.onclick=()=>{scope=b.dataset.s;paintScope()});
+/* Mueve todas las repeticiones: ajusta la regla y reubica checks/movidas por posición */
+function moveAll(t,n,anchor){
+  if(!n)return;
+  if(t.repeat==='every'){shiftSeries(t,n);return}
+  const oldL=genList(t).slice(),sh=k=>ymd(addDays(parseYmd(k),n)),cl=v=>Math.max(1,Math.min(31,v));
+  t.date=sh(t.date);
+  if(t.repeat==='week')t.wday=anchor.getDay();
+  else if(t.repeat==='month')t.mday=anchor.getDate();
+  else if(t.repeat==='year'){t.mday=anchor.getDate();t.month=anchor.getMonth()}
+  else if(t.repeat==='fortnight'){t.d1=cl(t.d1+n);t.d2=cl(t.d2+n)}
+  const newL=genList(t),idx=new Map(oldL.map((k,i)=>[k,i])),re=k=>{const i=idx.get(k);return i==null?null:newL[i]};
+  const dn={};for(const k in t.done||{}){const r=re(k);if(r)dn[r]=t.done[k]}t.done=dn;
+  const sk={};for(const k in t.skip||{}){const r=re(k);if(r)sk[r]=1}t.skip=sk;
+  const mv={};for(const k in t.moved||{}){const r=re(k);if(r)mv[r]=sh(t.moved[k])}t.moved=mv;
+}
 /* Desplaza toda la serie n días (inicio, repeticiones movidas y checks) */
 function shiftSeries(t,n){
   if(!n)return;const sh=k=>ymd(addDays(parseYmd(k),n));
@@ -620,13 +740,18 @@ function openForm(id,key){
   occMode=!!(t&&isRep(t)&&key&&key!=='__');
   seriesStart=t?.date||null;
   $('fDate').value=occMode?effDate(t,key):(t?.date||currentDateKey());
-  scope='one';occN=occMode&&t.repeat==='every'?occIndex(t,parseYmd(key)):0;
+  scope='one';occN=occMode&&isRule(t)?occIndex(t,parseYmd(key)):0;
   if(!occMode)$('dateHint').textContent=isRep(t||{})?'Fecha de inicio de la serie.':'';
   $('fTime').value=t?.time||'';
-  formEvery=t?.repeat==='every'?t.every:(t?.repeat==='daily'?1:0);
+  const rule=t&&isRule(t);
+  formEvery=rule?(t.repeat==='every'?t.every:1):(t?.repeat==='daily'?1:0);
   $('fRep').checked=formEvery>0;
-  $('fEvery').value=formEvery||1;
-  $('fTimes').value=t?.repeat==='every'?t.times:(formEvery?30:7);
+  $('fType').value=rule?t.repeat:'every';
+  $('fEvery').value=t?.repeat==='every'?t.every:1;
+  presetFromDate();
+  if(rule){if(t.wday!=null)$('fWday').value=t.wday;if(t.d1)$('fD1').value=t.d1;if(t.d2)$('fD2').value=t.d2;
+    if(t.mday){$('fMday').value=t.mday;$('fYday').value=t.mday}if(t.month!=null)$('fYmon').value=t.month}
+  $('fTimes').value=rule?t.times:(formEvery?30:7);
   $('fAlarm').checked=t?!!t.alarm:false;
   $('fBefore').value=String(t?.before??0);
   $('fNotes').value=t?.notes||'';
@@ -652,10 +777,11 @@ $('saveBtn').onclick=()=>{
   const cur=keepSeries?effDate(old,editKey):null,delta=keepSeries?dayDiff(parseYmd(date),parseYmd(cur)):0;
   if(keepSeries&&scope==='one'){if(date===editKey)delete moved[editKey];else moved[editKey]=date}
   const rec={id:editId||newId(),title,date:keepSeries?old.date:date,moved:formEvery?moved:{},skip:formEvery?{...(old?.skip||{})}:{},time:$('fTime').value,
-    repeat:formEvery?'every':'none',every:formEvery||0,times:formEvery?times:1,
+    repeat:formEvery?$('fType').value:'none',every:formEvery&&$('fType').value==='every'?clampE($('fEvery').value):0,times:formEvery?times:1,
+    wday:+$('fWday').value,d1:+$('fD1').value,d2:+$('fD2').value,mday:+($('fType').value==='year'?$('fYday').value:$('fMday').value),month:+$('fYmon').value,
     alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),done:old?.done||{}};
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
-  if(keepSeries&&scope==='all')shiftSeries(rec,delta);
+  if(keepSeries&&scope==='all')moveAll(rec,delta,parseYmd(date));
   if(old)data=data.map(x=>x.id===editId?rec:x);else data.push(rec);
   save();closeSheets();render();
   toast(keepSeries&&delta?(scope==='all'?`Todas movidas ${Math.abs(delta)} día${Math.abs(delta)>1?'s':''} ${delta>0?'adelante':'atrás'}`:'Repetición movida a '+fDay(parseYmd(date))):old?'Tarea actualizada':'Tarea guardada');
@@ -665,7 +791,7 @@ $('saveBtn').onclick=()=>{
 $('tomorrowBtn').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
   if(occMode){const cur=parseYmd(effDate(t,editKey)),base=cur<todayD()?todayD():cur,nd=ymd(addDays(base,1));
-    if(scope==='all'){shiftSeries(t,dayDiff(parseYmd(nd),cur));save();closeSheets();render();toast('Todas las repeticiones movidas');return}
+    if(scope==='all'){moveAll(t,dayDiff(parseYmd(nd),cur),parseYmd(nd));save();closeSheets();render();toast('Todas las repeticiones movidas');return}
     t.moved=t.moved||{};if(nd===editKey)delete t.moved[editKey];else t.moved[editKey]=nd;
     save();closeSheets();render();toast('Repetición pasada a '+fDay(parseYmd(nd)));return}
   const base=parseYmd(t.date)<todayD()?todayD():parseYmd(t.date);
@@ -695,14 +821,14 @@ $('delOne').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
   if(!occMode){removeTask(t);return}
   // ¿quedan otras repeticiones vivas?
-  const all=t.repeat==='every'?[...Array(t.times||1)].map((_,i)=>ymd(addDays(parseYmd(t.date),i*(t.every||1)))):null;
+  const all=isRule(t)?genList(t):null;
   if(all&&all.every(k=>k===editKey||(t.skip&&t.skip[k]))){removeTask(t);return}
   withUndo(t,()=>{t.skip=t.skip||{};t.skip[editKey]=1;if(t.done)delete t.done[editKey]},'Se eliminó solo esta repetición');
 };
 $('delFuture').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
   const key=parseYmd(editKey);
-  if(t.repeat==='every'){
+  if(isRule(t)){
     const n=occIndex(t,key);
     if(n<=1){removeTask(t,'Tarea y repeticiones eliminadas');return}
     withUndo(t,()=>{t.times=n-1;const last=ymd(lastDate(t));
@@ -744,8 +870,9 @@ $('fab').onclick=()=>openForm();
 function openDates(id,curKey){
   const t=data.find(x=>x.id===id);if(!t)return;
   const start=parseYmd(t.date),today=todayD();let done=0,html='';
-  for(let i=0;i<(t.times||1);i++){
-    const k=ymd(addDays(start,i*(t.every||1))),eff=parseYmd(effDate(t,k)),ok=isDone(t,k);
+  const L=genList(t);
+  for(let i=0;i<L.length;i++){
+    const k=L[i],eff=parseYmd(effDate(t,k)),ok=isDone(t,k);
     if(t.skip&&t.skip[k]){html+=`<div class="occ skipped"><span class="num">${i+1}</span><span class="od"><b>${fWeekday(parseYmd(k))}</b></span><span class="st pend">Eliminada</span></div>`;continue}
     if(ok)done++;
     const late=!ok&&eff<today,cls=ok?'ok':late?'late':'';
@@ -756,7 +883,7 @@ function openDates(id,curKey){
       <span class="od"><b>${fWeekday(eff)}</b>${moved}</span>${st}</button>`;
   }
   $('datesTitle').textContent=t.title;
-  $('datesSub').textContent=`${t.times} veces · cada ${t.every===1?'día':t.every+' días'} · ${done} hecha${done===1?'':'s'}`;
+  $('datesSub').textContent=`${ruleText(t)} · ${L.length} veces · ${done} hecha${done===1?'':'s'}`;
   $('datesList').innerHTML=html;
   $('datesList').querySelectorAll('.occ').forEach(b=>b.onclick=()=>{
     const d=parseYmd(b.dataset.d);selDay=d;view=new Date(d.getFullYear(),d.getMonth(),1);closeSheets();render();
@@ -774,7 +901,7 @@ $('mDone').onclick=()=>{
   const before=data.length;
   data=data.filter(t=>{
     if(!isRep(t))return !isDone(t,t.date);
-    if(t.repeat==='every'){const b=parseYmd(t.date);for(let i=0;i<(t.times||1);i++){const k=ymd(addDays(b,i*(t.every||1)));if(!isDone(t,k)&&!(t.skip&&t.skip[k]))return true}return false}
+    if(isRule(t)){for(const k of genList(t)){if(!isDone(t,k)&&!(t.skip&&t.skip[k]))return true}return false}
     return true;});
   save();closeSheets();render();toast(`${before-data.length} tarea(s) completada(s) borradas`);
 };
