@@ -37,6 +37,17 @@
   .pills::-webkit-scrollbar{display:none}
   .pill{flex:0 0 auto;padding:10px 22px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--muted);font-weight:600;font-size:16px}
   .pill.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .pills{overflow:visible}
+  .search{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:46px;padding:0 6px 0 14px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--muted);transition:border-color .15s,box-shadow .15s}
+  .search:focus-within{border-color:var(--navy);box-shadow:0 0 0 3px var(--navy-soft);color:var(--navy)}
+  .search input{flex:1;min-width:0;border:none;outline:none;background:none;font-size:16px;color:var(--text);height:100%;padding:0}
+  .search input::-webkit-search-cancel-button{display:none}
+  .search input::placeholder{color:var(--muted-2)}
+  #qClear{display:none;width:30px;height:30px;border:none;border-radius:50%;background:var(--bg);color:var(--muted);place-items:center;padding:0}
+  .search.has #qClear{display:grid}
+  body.searching .cal,body.searching .summary,body.searching .quick{display:none}
+  body.searching .sec{margin-top:10px}
+  mark{background:#FFE98A;color:inherit;border-radius:3px;padding:0 1px}
 
   /* Calendario */
   .cal{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:14px 12px 8px;box-shadow:0 2px 10px rgba(20,30,70,.05)}
@@ -236,9 +247,13 @@
 <main class="wrap">
   <div class="pills">
     <button class="pill on" data-f="hoy">Hoy</button>
-    <button class="pill" data-f="semana">Semana</button>
-    <button class="pill" data-f="mes">Mes</button>
-    <button class="pill" data-f="todo">Todo</button>
+    <label class="search" for="q">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Buscar tarea…" autocomplete="off" enterkeyhint="search">
+      <button type="button" id="qClear" aria-label="Borrar búsqueda">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </label>
   </div>
 
   <section class="cal">
@@ -654,7 +669,41 @@ function renderSummary(){
   $('sumBar').style.width=pct+'%';$('sumBar').classList.toggle('ok',ok);
 }
 
+/* ---------- Búsqueda ---------- */
+let query='';
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function hl(text,q){
+  const n=norm(text),i=n.indexOf(q);if(!q||i<0)return esc(text);
+  return esc(text.slice(0,i))+'<mark>'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));
+}
+function searchKey(t){
+  const today=ymd(new Date());
+  if(isRule(t)){
+    const L=genList(t).filter(k=>!(t.skip&&t.skip[k]));
+    const next=L.find(k=>!isDone(t,k)&&effDate(t,k)>=today)||L.find(k=>!isDone(t,k))||L[L.length-1];
+    return next?{key:next,day:parseYmd(effDate(t,next))}:{key:'__',day:todayD()};
+  }
+  if(isRep(t))return {key:occursOn(t,todayD())?today:'__',day:todayD()};
+  return {key:t.date,day:parseYmd(t.date)};
+}
+function renderSearch(){
+  const q=norm(query.trim());
+  const res=data.filter(t=>norm(t.title).includes(q)||norm(t.notes).includes(q))
+    .map(t=>{const s=searchKey(t);return {t,key:s.key,day:s.day,showDate:true,
+      late:!isRep(t)&&s.day<todayD()&&!isDone(t,s.key)}})
+    .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?1:-1;return a.day-b.day});
+  $('listTitle').textContent=`Resultados (${res.length})`;
+  $('clearDay').style.display='none';
+  $('list').innerHTML=res.length?res.map(x=>cardHTML(x).replace(`<div class="t">${esc(x.t.title)}</div>`,`<div class="t">${hl(x.t.title,q)}</div>`)).join('')
+    :`<div class="empty-msg">No se encontró ninguna tarea con “${esc(query.trim())}”.</div>`;
+  $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k));
+  $('list').querySelectorAll('.body').forEach(b=>b.onclick=()=>openForm(b.dataset.id,b.dataset.k));
+  $('list').querySelectorAll('.count').forEach(b=>b.onclick=()=>openDates(b.dataset.id,b.dataset.k));
+}
 function render(){
+  const searching=!!query.trim();
+  document.body.classList.toggle('searching',searching);
+  if(searching){document.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));renderSearch();return}
   document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('on',!selDay&&p.dataset.f===filter));
   renderCal();renderSummary();renderList();
 }
@@ -912,7 +961,11 @@ function shift(n){
 $('prevM').onclick=()=>shift(-1);$('nextM').onclick=()=>shift(1);
 $('goToday').onclick=()=>{selDay=null;filter='hoy';const t=new Date();view=new Date(t.getFullYear(),t.getMonth(),1);render()};
 $('calToggle').onclick=()=>{calOpen=!calOpen;store(CAL_KEY,calOpen);if(calOpen&&selDay)view=new Date(selDay.getFullYear(),selDay.getMonth(),1);render()};
+$('q').oninput=()=>{query=$('q').value;$('q').closest('.search').classList.toggle('has',!!query);render()};
+$('qClear').onclick=e=>{e.preventDefault();$('q').value='';query='';$('q').closest('.search').classList.remove('has');render();$('q').focus()};
+$('q').onkeydown=e=>{if(e.key==='Escape'){$('qClear').click();$('q').blur()}if(e.key==='Enter')$('q').blur()};
 document.querySelectorAll('.pill').forEach(p=>p.onclick=()=>{
+  if(query){$('q').value='';query='';$('q').closest('.search').classList.remove('has')}
   filter=p.dataset.f;selDay=null;
   if(filter!=='mes'){const t=new Date();view=new Date(t.getFullYear(),t.getMonth(),1)}
   render();
