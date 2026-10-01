@@ -62,7 +62,7 @@
   @keyframes inL{from{transform:translateX(40%);opacity:0}to{transform:none;opacity:1}}
   @keyframes inR{from{transform:translateX(-40%);opacity:0}to{transform:none;opacity:1}}
   .dow{font-weight:800;font-size:14px;padding:8px 0 4px;color:var(--navy)}
-  .dow:nth-child(6),.dow:nth-child(7){color:var(--red)}
+  .dow:nth-child(1),.dow:nth-child(7){color:var(--red)}
   .day{position:relative;height:46px;display:flex;align-items:center;justify-content:center;border:none;background:none;font-size:17px;color:var(--text);padding:0}
   .day .n{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:500}
   .day.today .n{border:2px solid var(--navy);color:var(--navy);font-weight:700}
@@ -586,16 +586,16 @@ const I={
 function renderCal(){
   $('calTitle').textContent=fMonth(view).replace(/^./,c=>c.toUpperCase());
   const g=$('calGrid');let h='';
-  ['L','M','M','J','V','S','D'].forEach(x=>h+=`<div class="dow">${x}</div>`);
+  ['D','L','M','M','J','V','S'].forEach(x=>h+=`<div class="dow">${x}</div>`);
   const today=new Date();
   const ref=selDay||today;
   let days=[];
   if(calOpen){
-    const first=(view.getDay()+6)%7,dim=new Date(view.getFullYear(),view.getMonth()+1,0).getDate();
+    const first=view.getDay(),dim=new Date(view.getFullYear(),view.getMonth()+1,0).getDate();
     for(let i=0;i<first;i++)days.push(null);
     for(let d=1;d<=dim;d++)days.push(new Date(view.getFullYear(),view.getMonth(),d));
   }else{
-    const mon=addDays(startDay(ref),-((ref.getDay()+6)%7));
+    const mon=addDays(startDay(ref),-ref.getDay());
     for(let i=0;i<7;i++)days.push(addDays(mon,i));
   }
   days.forEach(dt=>{
@@ -627,7 +627,7 @@ function periodDays(){
   const t=todayD();
   if(selDay)return[startDay(selDay)];
   if(filter==='hoy')return[t];
-  if(filter==='semana'){const mon=addDays(t,-((t.getDay()+6)%7));return[...Array(7)].map((_,i)=>addDays(mon,i))}
+  if(filter==='semana'){const mon=addDays(t,-t.getDay());return[...Array(7)].map((_,i)=>addDays(mon,i))}
   if(filter==='mes'){const dim=new Date(view.getFullYear(),view.getMonth()+1,0).getDate();return[...Array(dim)].map((_,i)=>new Date(view.getFullYear(),view.getMonth(),i+1))}
   return null;
 }
