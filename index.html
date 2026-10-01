@@ -230,6 +230,18 @@
   .dgrid button{height:30px;border:none;border-radius:8px;background:var(--bg);font-size:13px;color:var(--text);padding:0}
   .dgrid button.on{background:var(--navy);color:#fff;font-weight:600}
   .dgrid button:active{transform:scale(.92)}
+  #expSheet h3{font-size:17px;font-weight:700;margin-bottom:4px}
+  #expSheet label.f{font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 6px}
+  .fname{display:flex;align-items:center;gap:6px}
+  .fname .inp{height:42px;font-size:15px;border-radius:11px}
+  .fname span{color:var(--muted);font-size:14px}
+  .dest{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;margin-bottom:8px;border:1.5px solid var(--border);border-radius:13px;background:#fff;text-align:left;color:var(--text)}
+  .dest:active{background:var(--navy-soft);border-color:var(--navy)}
+  .dest:disabled{opacity:.45}
+  .dest .di{flex:0 0 auto;width:38px;height:38px;border-radius:10px;background:var(--bg);display:grid;place-items:center;font-size:19px}
+  .dest .dt b{display:block;font-size:15px;font-weight:600}
+  .dest .dt small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  #expSheet .btn{height:44px;font-size:15px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -413,6 +425,26 @@
   <div class="occ-sub" id="datesSub"></div>
   <div id="datesList"></div>
   <button class="btn ghost" id="datesClose">Cerrar</button>
+</div>
+
+<!-- Exportar copia -->
+<div class="sheet" id="expSheet">
+  <div class="grab"></div>
+  <h3>Exportar copia de seguridad</h3>
+  <div class="occ-sub" id="expSub"></div>
+  <label class="f" for="expName">Nombre del archivo</label>
+  <div class="fname"><input class="inp" id="expName" autocomplete="off"><span>.json</span></div>
+  <label class="f">¿Dónde quieres guardarla?</label>
+  <button class="dest" id="expPick">
+    <span class="di">📁</span><span class="dt"><b>Elegir carpeta</b><small>Escoge la carpeta del celular o computador</small></span>
+  </button>
+  <button class="dest" id="expShare">
+    <span class="di">📤</span><span class="dt"><b>Enviar a…</b><small>WhatsApp, Google Drive, Gmail, Telegram…</small></span>
+  </button>
+  <button class="dest" id="expDown">
+    <span class="di">⬇️</span><span class="dt"><b>Descargas</b><small>Se guarda directo en la carpeta Descargas</small></span>
+  </button>
+  <button class="btn ghost" id="expCancel">Cancelar</button>
 </div>
 
 <!-- Menú -->
@@ -1012,11 +1044,46 @@ $('mDone').onclick=()=>{
     return true;});
   save();closeSheets();render();toast(`${before-data.length} tarea(s) completada(s) borradas`);
 };
+/* ---------- Exportar con elección de destino ---------- */
+function expFile(){
+  const name=(($('expName').value||'').trim().replace(/[\\/:*?"<>|]+/g,'-')||`tareas_${ymd(new Date())}`)+'.json';
+  const json=JSON.stringify(data,null,2);
+  return {name,json,blob:new Blob([json],{type:'application/json'})};
+}
+function expDone(msg){closeSheets();toast(msg)}
 $('mExport').onclick=()=>{
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`tareas_${ymd(new Date())}.json`;a.click();
-  closeSheets();toast('Copia exportada');
+  if(!data.length){toast('No hay tareas para exportar');return}
+  const n=data.length;
+  $('expSub').textContent=`${n} tarea${n===1?'':'s'} · ${fWeekday(new Date())}`;
+  $('expName').value=`tareas_${ymd(new Date())}`;
+  $('expPick').disabled=!('showSaveFilePicker' in window);
+  if($('expPick').disabled)$('expPick').querySelector('small').textContent='No disponible en este navegador · usa "Enviar a…"';
+  const f=new File(['x'],'t.json',{type:'application/json'});
+  $('expShare').disabled=!(navigator.canShare&&navigator.canShare({files:[f]}));
+  $('menuSheet').classList.remove('show');openSheet('expSheet');
 };
+$('expPick').onclick=async()=>{
+  const {name,json}=expFile();
+  try{
+    const fh=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Copia de tareas',accept:{'application/json':['.json']}}]});
+    const w=await fh.createWritable();await w.write(json);await w.close();
+    expDone('Copia guardada en la carpeta elegida');
+  }catch(e){if(e.name!=='AbortError')toast('No se pudo guardar, prueba otra opción')}
+};
+$('expShare').onclick=async()=>{
+  const {name,json}=expFile();
+  try{
+    await navigator.share({files:[new File([json],name,{type:'application/json'})],title:'Copia de seguridad · Tareas',text:'Copia de seguridad de mis tareas'});
+    expDone('Copia enviada');
+  }catch(e){if(e.name!=='AbortError')toast('No se pudo compartir, prueba Descargas')}
+};
+$('expDown').onclick=()=>{
+  const {name,blob}=expFile();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  expDone('Copia guardada en Descargas');
+};
+$('expCancel').onclick=closeSheets;
 $('mImport').onclick=()=>$('importFile').click();
 $('importFile').onchange=e=>{
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
