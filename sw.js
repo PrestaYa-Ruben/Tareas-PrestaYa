@@ -1,4 +1,4 @@
-const CACHE = 'tareas-v14';
+const CACHE = 'tareas-v15';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
