@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#23305F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -242,6 +242,21 @@
   .dest .dt b{display:block;font-size:15px;font-weight:600}
   .dest .dt small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
   #expSheet .btn{height:44px;font-size:15px;margin-top:6px}
+  /* ===== Corrección zoom y desbordamiento (v20) ===== */
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  html,body{overflow-x:hidden;max-width:100%}
+  body.modal-open{overflow:hidden}
+  input,select,textarea{font-size:16px !important;max-width:100%;min-width:0}
+  .inp{min-width:0;width:100%}
+  input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:none;display:block;line-height:normal;text-align:left}
+  input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left}
+  .row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .row>*{min-width:0}
+  .sheet{width:100%;max-height:92vh;max-height:92dvh;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .sheet *{max-width:100%}
+  .stepper{grid-template-columns:42px minmax(0,1fr) 42px}
+  .fname{min-width:0}.fname .inp{flex:1}
+  .dpop-card{max-width:calc(100vw - 32px)}
 </style>
 </head>
 <body>
@@ -756,8 +771,8 @@ $('quickForm').onsubmit=e=>{
 };
 
 /* ---------- Formulario ---------- */
-function openSheet(id){$('backdrop').classList.add('show');$(id).classList.add('show')}
-function closeSheets(){$('backdrop').classList.remove('show');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'))}
+function openSheet(id){$('backdrop').classList.add('show');$(id).classList.add('show');$(id).scrollTop=0;document.body.classList.add('modal-open')}
+function closeSheets(){$('backdrop').classList.remove('show');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));document.body.classList.remove('modal-open')}
 let formEvery=0;
 const clampE=v=>Math.max(1,Math.min(30,Math.round(+v)||1));
 function readEvery(){formEvery=$('fRep').checked?($('fType').value==='every'?clampE($('fEvery').value):1):0}
@@ -896,11 +911,9 @@ function openForm(id,key){
   $('tomorrowBtn').textContent='Pasar a mañana';
   paintScope();
   openSheet('formSheet');
-  if(!t)setTimeout(()=>$('fTitle').focus(),250);
 }
 $('fAlarm').onchange=()=>$('beforeWrap').style.display=$('fAlarm').checked?'block':'none';
 $('saveBtn').onclick=()=>{
-  readEvery();
   const title=$('fTitle').value.trim(),date=$('fDate').value;
   if(!title){toast('Escribe el nombre de la tarea');return}
   if(!date){toast('Elige una fecha');return}
@@ -954,7 +967,6 @@ $('delCancel').onclick=()=>{$('delSheet').classList.remove('show');$('formSheet'
 $('delOne').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
   if(!occMode){removeTask(t);return}
-  // ¿quedan otras repeticiones vivas?
   const all=isRule(t)?genList(t):null;
   if(all&&all.every(k=>k===editKey||(t.skip&&t.skip[k]))){removeTask(t);return}
   withUndo(t,()=>{t.skip=t.skip||{};t.skip[editKey]=1;if(t.done)delete t.done[editKey]},'Se eliminó solo esta repetición');
