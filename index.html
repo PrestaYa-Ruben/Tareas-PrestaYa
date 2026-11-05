@@ -230,6 +230,23 @@
   .dgrid button{height:30px;border:none;border-radius:8px;background:var(--bg);font-size:13px;color:var(--text);padding:0}
   .dgrid button.on{background:var(--navy);color:#fff;font-weight:600}
   .dgrid button:active{transform:scale(.92)}
+  /* Mini calendario para elegir el día */
+  .dpop-card{width:296px;padding:14px 14px 10px;border-radius:18px;animation:mcIn .22s cubic-bezier(.3,1.3,.5,1)}
+  @keyframes mcIn{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+  .mc-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 6px}
+  .mc-title{font-size:15px;font-weight:700;color:var(--text)}
+  .mc-nav{width:34px;height:34px;border:none;border-radius:10px;background:var(--bg);color:var(--navy);display:grid;place-items:center;padding:0}
+  .mc-nav:active{background:var(--navy-soft)}
+  .mc-dow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;font-weight:800;color:var(--navy);margin-bottom:4px}
+  .mc-dow span:first-child,.mc-dow span:last-child{color:var(--red)}
+  #dayGrid button{height:34px;border-radius:50%;background:none;font-size:14px;font-weight:500;width:34px;justify-self:center}
+  #dayGrid button.mc-today{box-shadow:inset 0 0 0 2px var(--navy);color:var(--navy);font-weight:700}
+  #dayGrid button.on{background:var(--navy);color:#fff;font-weight:700;box-shadow:none}
+  #dayGrid button.mc-other{background:#FFF3B8;color:var(--navy)}
+  #dayGrid .mc-empty{height:34px}
+  #dayGrid button:disabled{color:var(--muted-2);opacity:.45}
+  #fortHint{margin-top:6px}
+  .mc-close{display:block;width:100%;margin-top:8px;height:38px;border:none;border-radius:11px;background:var(--bg);color:var(--text);font-size:14px;font-weight:500}
   #expSheet h3{font-size:17px;font-weight:700;margin-bottom:4px}
   #expSheet label.f{font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 6px}
   .fname{display:flex;align-items:center;gap:6px}
@@ -257,6 +274,11 @@
   .stepper{grid-template-columns:42px minmax(0,1fr) 42px}
   .fname{min-width:0}.fname .inp{flex:1}
   .dpop-card{max-width:calc(100vw - 32px)}
+  /* ===== Tono cálido del calendario principal (v24) ===== */
+  .cal{background:linear-gradient(180deg,#FFF8EA 0%,#FFFBF3 100%);border-color:#F1E3C4;box-shadow:0 4px 16px rgba(196,150,60,.10)}
+  .cal .mc-nav,.cal .icon-btn:active{background:#FBEFD6}
+  .cal .day:not(.sel):not(.empty):active .n{background:#FBEBC9}
+  .cal-toggle{color:#9A7B45}
   /* ===== Animaciones del calendario (v21) ===== */
   .cal.enter{animation:calIn .55s cubic-bezier(.2,.8,.3,1) both}
   @keyframes calIn{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
@@ -389,11 +411,11 @@
       </select>
     </div>
     <div id="wFort" class="rw">
-      <label class="f">Qué días del mes</label>
       <div class="row">
-        <select class="inp" id="fD1" aria-label="Primer día"></select>
-        <select class="inp" id="fD2" aria-label="Segundo día"></select>
+        <div><label class="f">Primera cuota</label><select class="inp" id="fD1" aria-label="Primera cuota"></select></div>
+        <div><label class="f">Segunda cuota</label><select class="inp" id="fD2" aria-label="Segunda cuota"></select></div>
       </div>
+      <div class="hint" id="fortHint"></div>
     </div>
     <div id="wMonth" class="rw">
       <label class="f" for="fMday">Qué día del mes</label>
@@ -497,7 +519,17 @@
   <button class="btn ghost" id="menuClose">Cerrar</button>
 </div>
 
-<div class="dpop" id="dayPop"><div class="dpop-card"><div class="dpop-t" id="dayPopT"></div><div class="dgrid" id="dayGrid"></div></div></div>
+<div class="dpop" id="dayPop"><div class="dpop-card">
+  <div class="dpop-t" id="dayPopT"></div>
+  <div class="mc-head">
+    <button type="button" class="mc-nav" id="mcPrev" aria-label="Mes anterior"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="mc-title" id="mcTitle"></div>
+    <button type="button" class="mc-nav" id="mcNext" aria-label="Mes siguiente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="mc-dow"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div>
+  <div class="dgrid" id="dayGrid"></div>
+  <button type="button" class="mc-close" id="mcClose">Cerrar</button>
+</div></div>
 
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn" style="display:none">DESHACER</button></div>
 
@@ -547,7 +579,7 @@ function genList(t){
   if(t.repeat==='every'){for(let i=0;i<N;i++)out.push(ymd(addDays(s,i*(t.every||1))))}
   else if(t.repeat==='week'){let d=new Date(s);while(d.getDay()!==(+t.wday))d=addDays(d,1);for(let i=0;i<N;i++)out.push(ymd(addDays(d,7*i)))}
   else{
-    let y=s.getFullYear(),m=s.getMonth(),guard=0;
+    let y=s.getFullYear(),m=t.repeat==='year'?(+t.month):s.getMonth(),guard=0;
     while(out.length<N&&guard++<2000){
       const dim=dimOf(y,m);
       if(t.repeat==='fortnight'){[...new Set([t.d1,t.d2].map(v=>Math.min(+v||1,dim)))].sort((a,b)=>a-b).forEach(v=>push(new Date(y,m,v)))}
@@ -800,7 +832,7 @@ function renderSearch(){
     .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?1:-1;return a.day-b.day});
   $('listTitle').textContent=`Resultados (${res.length})`;
   $('clearDay').style.display='none';
-  $('list').innerHTML=res.length?res.map(x=>cardHTML(x).replace(`<div class="t">${esc(x.t.title)}</div>`,`<div class="t">${hl(x.t.title,q)}</div>`)).join('')
+  $('list').innerHTML=res.length?res.map(cardHTML).join('')
     :`<div class="empty-msg">No se encontró ninguna tarea con “${esc(query.trim())}”.</div>`;
   $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k));
   $('list').querySelectorAll('.body').forEach(b=>b.onclick=()=>openForm(b.dataset.id,b.dataset.k));
@@ -840,20 +872,59 @@ function readEvery(){formEvery=$('fRep').checked?($('fType').value==='every'?cla
   $('fD1').innerHTML=o(31);$('fD2').innerHTML=o(31);$('fMday').innerHTML=o(31);$('fYday').innerHTML=o(31);
   $('fYmon').innerHTML=MES.map((m,i)=>`<option value="${i}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('');})();
 /* Reemplaza los desplegables de día por un selector compacto */
-const DAY_SEL={fD1:'Primer día',fD2:'Segundo día',fMday:'Día del mes',fYday:'Día'};
+const DAY_SEL={fD1:'Primera cuota',fD2:'Segunda cuota',fMday:'Día del mes',fYday:'Día'};
+/* Quincena: fecha de la primera cuota (inicio del crédito) y segunda cuota */
+let q1Date=null;
+const q1=()=>q1Date||$('fDate').value||ymd(new Date());
+function secondDate(){
+  const s=parseYmd(q1()),d2=+$('fD2').value||1;
+  for(let i=0;i<3;i++){const y=s.getFullYear(),m=s.getMonth()+i,c=new Date(y,m,Math.min(d2,dimOf(y,m)));if(c>s)return c}
+  return addDays(s,15);
+}
+const fmtQ=d=>`${pad(d.getDate())} ${MES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
 Object.keys(DAY_SEL).forEach(id=>{
   const s=$(id);s.style.display='none';
   const b=document.createElement('button');b.type='button';b.className='dsel';b.id=id+'Btn';
   s.after(b);b.onclick=()=>openDayPop(id);
 });
-function syncDaySel(){Object.keys(DAY_SEL).forEach(id=>{
-  $(id+'Btn').innerHTML=`<span><small>Día</small> ${$(id).value}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`})}
+function syncDaySel(){
+  if($('fortHint'))$('fortHint').textContent=`Se pagará cada mes los días ${+$('fD1').value} y ${secondDate().getDate()}, empezando el ${fmtQ(parseYmd(q1()))}.`;
+  Object.keys(DAY_SEL).forEach(id=>{
+  const lbl=id==='fD1'?fmtQ(parseYmd(q1())):id==='fD2'?fmtQ(secondDate()):`<small>Día</small> ${$(id).value}`;
+  $(id+'Btn').innerHTML=`<span>${lbl}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`})}
+/* Mini calendario: muestra el mes real y al tocar un día toma ese número */
+let mcId=null,mcView=null;
 function openDayPop(id){
-  const cur=+$(id).value;$('dayPopT').textContent=DAY_SEL[id];
-  $('dayGrid').innerHTML=[...Array(31)].map((_,i)=>`<button type="button" class="${i+1===cur?'on':''}" data-v="${i+1}">${i+1}</button>`).join('');
-  $('dayGrid').querySelectorAll('button').forEach(b=>b.onclick=()=>{$(id).value=b.dataset.v;$('dayPop').classList.remove('show');syncDaySel();updateTimesHint()});
-  $('dayPop').classList.add('show');
+  mcId=id;$('dayPopT').textContent=DAY_SEL[id];
+  const base=id==='fD1'?parseYmd(q1()):id==='fD2'?secondDate():($('fDate').value?parseYmd($('fDate').value):new Date());
+  mcView=id==='fYday'?new Date(base.getFullYear(),+$('fYmon').value,1):new Date(base.getFullYear(),base.getMonth(),1);
+  renderMini();$('dayPop').classList.add('show');
 }
+function renderMini(){
+  const y=mcView.getFullYear(),m=mcView.getMonth(),dim=dimOf(y,m),first=new Date(y,m,1).getDay(),cur=+$(mcId).value,today=new Date();
+  const other=mcId==='fD1'?+$('fD2').value:mcId==='fD2'?+$('fD1').value:0;
+  $('mcTitle').textContent=(MES[m][0].toUpperCase()+MES[m].slice(1))+' '+y;
+  let h='';for(let i=0;i<first;i++)h+='<span class="mc-empty"></span>';
+  const fort=mcId==='fD1'||mcId==='fD2',Q1=parseYmd(q1()),Q2=secondDate();
+  const selD=fort?(mcId==='fD1'?Q1:Q2):null,othD=fort?(mcId==='fD1'?Q2:Q1):null,maxD=addDays(Q1,31);
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(y,m,d),cls=[];let dis=false;
+    if(fort){if(sameDay(dt,selD))cls.push('on');else if(sameDay(dt,othD))cls.push('mc-other');if(mcId==='fD2'&&(dt<=Q1||dt>maxD))dis=true}
+    else if(d===cur&&(mcId!=='fYday'||m===+$('fYmon').value))cls.push('on');else if(d===other)cls.push('mc-other');
+    if(y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate())cls.push('mc-today');
+    h+=`<button type="button" class="${cls.join(' ')}" data-v="${d}"${dis?' disabled':''}>${d}</button>`;
+  }
+  $('dayGrid').innerHTML=h;
+  $('dayGrid').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $(mcId).value=b.dataset.v;if(mcId==='fYday')$('fYmon').value=mcView.getMonth();
+    if(mcId==='fD1'){const nd=new Date(mcView.getFullYear(),mcView.getMonth(),+b.dataset.v);q1Date=ymd(nd);if(!occMode)$('fDate').value=q1Date;
+      if(+$('fD2').value===nd.getDate())$('fD2').value=addDays(nd,15).getDate()}
+    $('dayPop').classList.remove('show');syncDaySel();updateTimesHint();
+  });
+}
+$('mcPrev').onclick=()=>{mcView=new Date(mcView.getFullYear(),mcView.getMonth()-1,1);renderMini()};
+$('mcNext').onclick=()=>{mcView=new Date(mcView.getFullYear(),mcView.getMonth()+1,1);renderMini()};
+$('mcClose').onclick=()=>$('dayPop').classList.remove('show');
 $('dayPop').onclick=e=>{if(e.target.id==='dayPop')$('dayPop').classList.remove('show')};
 function paintType(){
   syncDaySel();
@@ -874,7 +945,7 @@ function formRule(start){
 function presetFromDate(){
   const d=$('fDate').value?parseYmd($('fDate').value):new Date();
   $('fWday').value=d.getDay();$('fMday').value=d.getDate();$('fYday').value=d.getDate();$('fYmon').value=d.getMonth();
-  const a=d.getDate()<=15?d.getDate():d.getDate()-15;$('fD1').value=a;$('fD2').value=Math.min(a+15,31);
+  q1Date=ymd(d);$('fD1').value=d.getDate();$('fD2').value=addDays(d,15).getDate();
   if(typeof syncDaySel==='function')syncDaySel();
 }
 $('fType').onchange=()=>{
@@ -891,7 +962,7 @@ function updateTimesHint(){
   readEvery();
   if(!formEvery||!$('fDate').value){$('timesHint').textContent='';return}
   _cache.delete('__form');
-  const r=formRule(occMode?seriesStart:$('fDate').value),l=genList(r);
+  const r=formRule($('fType').value==='fortnight'?q1():(occMode?seriesStart:$('fDate').value)),l=genList(r);
   const first=parseYmd(l[0]),last=parseYmd(l[l.length-1]);
   $('timesHint').textContent=`${ruleText(r)} · ${l.length} ${l.length===1?'vez':'veces'}. `+
     (l.length===1?`El ${fWeekday(first)}.`:`Primera: ${fWeekday(first)}. Última: ${fWeekday(last)}.`);
@@ -906,7 +977,10 @@ $('fEvery').oninput=updateTimesHint;
 $('fEvery').onblur=()=>{$('fEvery').value=clampE($('fEvery').value);updateTimesHint()};
 $('tMinus').onclick=()=>{$('fTimes').value=Math.max(1,(+$('fTimes').value||1)-1);updateTimesHint()};
 $('tPlus').onclick=()=>{$('fTimes').value=Math.min(365,(+$('fTimes').value||0)+1);updateTimesHint()};
-$('fTimes').oninput=updateTimesHint;$('fDate').onchange=()=>{if(!occMode&&$('fRep').checked&&!editId)presetFromDate();updateTimesHint()};
+$('fTimes').oninput=updateTimesHint;$('fDate').onchange=()=>{
+  if(!occMode&&$('fRep').checked&&!editId)presetFromDate();
+  else if(!occMode&&$('fType').value==='fortnight'&&$('fDate').value){q1Date=$('fDate').value;$('fD1').value=parseYmd(q1Date).getDate();syncDaySel()}
+  updateTimesHint()};
 let editKey=null,occMode=false,seriesStart=null,scope='one',occN=0;
 function paintScope(){
   document.querySelectorAll('#scopeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s===scope));
@@ -959,7 +1033,8 @@ function openForm(id,key){
   $('fEvery').value=t?.repeat==='every'?t.every:1;
   presetFromDate();
   if(rule){if(t.wday!=null)$('fWday').value=t.wday;if(t.d1)$('fD1').value=t.d1;if(t.d2)$('fD2').value=t.d2;
-    if(t.mday){$('fMday').value=t.mday;$('fYday').value=t.mday}if(t.month!=null)$('fYmon').value=t.month}
+    if(t.mday){$('fMday').value=t.mday;$('fYday').value=t.mday}if(t.month!=null)$('fYmon').value=t.month;
+    if(t.repeat==='fortnight')q1Date=occMode?seriesStart:t.date}
   $('fTimes').value=rule?t.times:(formEvery?30:7);
   $('fAlarm').checked=t?!!t.alarm:false;
   $('fBefore').value=String(t?.before??0);
@@ -988,7 +1063,9 @@ $('saveBtn').onclick=()=>{
     wday:+$('fWday').value,d1:+$('fD1').value,d2:+$('fD2').value,mday:+($('fType').value==='year'?$('fYday').value:$('fMday').value),month:+$('fYmon').value,
     alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),done:old?.done||{}};
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
-  if(keepSeries&&scope==='all')moveAll(rec,delta,parseYmd(date));
+  let fortReset=false;
+  if(rec.repeat==='fortnight'){const q=q1();if(!keepSeries)rec.date=q;else if(q!==old.date){rec.date=q;rec.moved={};rec.skip={};fortReset=true}}
+  if(keepSeries&&scope==='all'&&!fortReset)moveAll(rec,delta,parseYmd(date));
   if(old)data=data.map(x=>x.id===editId?rec:x);else data.push(rec);
   save();closeSheets();render();
   toast(keepSeries&&delta?(scope==='all'?`Todas movidas ${Math.abs(delta)} día${Math.abs(delta)>1?'s':''} ${delta>0?'adelante':'atrás'}`:'Repetición movida a '+fDay(parseYmd(date))):old?'Tarea actualizada':'Tarea guardada');
