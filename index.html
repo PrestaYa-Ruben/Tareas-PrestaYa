@@ -274,6 +274,11 @@
   .stepper{grid-template-columns:42px minmax(0,1fr) 42px}
   .fname{min-width:0}.fname .inp{flex:1}
   .dpop-card{max-width:calc(100vw - 32px)}
+  /* ===== Nota visible en la tarjeta (v26) ===== */
+  .item .nt{display:flex;gap:5px;align-items:flex-start;margin-top:3px;font-size:13.5px;line-height:1.35;color:#4B5468}
+  .item .nt svg{flex:0 0 auto;margin-top:2px;color:var(--muted)}
+  .item .nt span{min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:pre-line;word-break:break-word}
+  .item.done .nt{color:var(--muted-2)}
   /* ===== Tono cálido del calendario principal (v24) ===== */
   .cal{background:linear-gradient(180deg,#FFF8EA 0%,#FFFBF3 100%);border-color:#F1E3C4;box-shadow:0 4px 16px rgba(196,150,60,.10)}
   .cal .mc-nav,.cal .icon-btn:active{background:#FBEFD6}
@@ -749,11 +754,11 @@ function cardHTML(x){
     badge=`<button class="count" data-id="${t.id}" data-k="${x.key}" aria-label="Ver fechas">${n?n+' de '+t.times:t.times+' veces'}</button>`;
   }else if(isRep(t))meta+=`<span>${I.rep}${REP_TXT[t.repeat]}</span>`;
   if(t.alarm&&t.time)meta+=`<span>${I.bell}</span>`;
-  if(t.notes)meta+=`<span>${I.note}</span>`;
   return `<div class="item ${done?'done':''} ${x.late?'late':''}">
     <button class="chk" data-id="${t.id}" data-k="${x.key}" aria-label="Marcar como hecha"><span>${I.check}</span></button>
     <div class="body" data-id="${t.id}" data-k="${x.key}">
       <div class="t">${esc(t.title)}</div>
+      ${t.notes?`<div class="nt">${I.note}<span>${esc(t.notes)}</span></div>`:''}
       ${meta?`<div class="meta">${meta}</div>`:''}
     </div>
     ${badge}
