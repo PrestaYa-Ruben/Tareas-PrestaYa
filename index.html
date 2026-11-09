@@ -291,7 +291,10 @@
   .item.done .nxrow .nx{color:var(--muted-2)}
   .item{gap:10px}
   .item .chk{width:40px}
-  .nxrow .count{flex:0 0 auto;margin-left:auto;padding:5px 14px;font-size:12px;min-width:64px;justify-content:center}
+  .nxrow .count{flex:0 0 auto;margin-left:auto;padding:2px 0 2px 6px;min-width:0;justify-content:flex-end;
+    background:none;border:none;border-radius:0;font-size:17px;font-weight:800;color:var(--navy);letter-spacing:-.2px;white-space:nowrap}
+  .nxrow .count:active{opacity:.6;transform:none}
+  .item.done .nxrow .count{color:var(--green);background:none}
   .item{padding-right:12px}
   .item .th .t{flex:0 1 auto}
   /* v34: nombre compacto, cuota y frecuencia siempre en la misma línea */
