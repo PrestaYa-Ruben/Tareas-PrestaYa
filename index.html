@@ -322,6 +322,21 @@
   html,body{touch-action:manipulation}
   button,a,label,input,select,textarea,.item,.day,.occ,.dest,.dsel,.pill,.chk,.count{touch-action:manipulation}
   .cal,.grid{touch-action:pan-y}
+  /* ===== Notas rápidas en la tarjeta resumen (v40) ===== */
+  .summary{position:relative}
+  .notes-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:46px;height:46px;border:none;border-radius:14px;
+    background:var(--navy-soft);color:var(--navy);display:grid;place-items:center;padding:0;box-shadow:0 2px 6px rgba(35,48,95,.10)}
+  .notes-btn:active{transform:translateY(-50%) scale(.93)}
+  .notes-dot{position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:#FFD102;border:2px solid var(--navy-soft);display:none}
+  .notes-btn.has .notes-dot{display:block}
+  .summary .lbl,.summary .big,.summary .sub{padding:0 52px}
+  #notesSheet h3{font-size:17px;margin-bottom:2px}
+  #notesSheet .occ-sub{margin:0 0 10px;font-size:12.5px}
+  .notes-area{height:46vh!important;height:46dvh!important;min-height:220px;padding:12px 14px!important;line-height:1.45;resize:none;background:#FFFDF6;border-color:#F1E3C4}
+  .notes-area:focus{border-color:var(--navy)}
+  .notes-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--muted)}
+  .notes-clear{border:none;background:none;color:var(--red);font-size:13px;font-weight:600;padding:6px 2px}
+  #notesSheet .btn{height:46px;font-size:15px;margin-top:10px}
   /* ===== Valor de la cuota (v27) ===== */
   .money{position:relative}
   .money span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;font-size:16px;pointer-events:none}
@@ -407,6 +422,10 @@
     <div class="big" id="sumBig">0 / 0</div>
     <div class="sub" id="sumSub">Sin tareas registradas</div>
     <div class="bar"><b id="sumBar"></b></div>
+    <button class="notes-btn" id="notesBtn" aria-label="Mis notas">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6.5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+      <i class="notes-dot" id="notesDot"></i>
+    </button>
   </section>
 
   <form class="quick" id="quickForm" autocomplete="off">
@@ -547,6 +566,16 @@
   <div class="occ-sub" id="datesSub"></div>
   <div id="datesList"></div>
   <button class="btn ghost" id="datesClose">Cerrar</button>
+</div>
+
+<!-- Mis notas -->
+<div class="sheet" id="notesSheet">
+  <div class="grab"></div>
+  <h3>Mis notas</h3>
+  <div class="occ-sub" id="notesInfo">Se guardan solas mientras escribes</div>
+  <textarea class="inp notes-area" id="notesArea" placeholder="Escribe aquí tus notas: pendientes, teléfonos, montos, recordatorios…"></textarea>
+  <div class="notes-foot"><span id="notesCount"></span><button type="button" class="notes-clear" id="notesClear">Borrar todo</button></div>
+  <button class="btn primary" id="notesDone">Listo</button>
 </div>
 
 <!-- Exportar copia -->
@@ -907,6 +936,26 @@ function freqText(t){
   }
   return '';
 }
+
+/* ---------- Mis notas ---------- */
+const NOTES_KEY='tareas_notas_v1';
+let notesText=load(NOTES_KEY,'');
+function paintNotesBtn(){$('notesBtn').classList.toggle('has',!!notesText.trim())}
+function notesMeta(){const n=notesText.trim()?notesText.trim().split(/\s+/).length:0;$('notesCount').textContent=n?`${n} palabra${n===1?'':'s'}`:'Sin notas'}
+$('notesBtn').onclick=()=>{$('notesArea').value=notesText;notesMeta();$('notesInfo').textContent='Se guardan solas mientras escribes';openSheet('notesSheet')};
+let notesT=null;
+$('notesArea').oninput=()=>{
+  notesText=$('notesArea').value;notesMeta();
+  clearTimeout(notesT);notesT=setTimeout(()=>{store(NOTES_KEY,notesText);paintNotesBtn();$('notesInfo').textContent='Guardado ✓'},350);
+};
+$('notesClear').onclick=()=>{
+  if(!notesText.trim())return;
+  if(!confirm('¿Borrar todas las notas?'))return;
+  const prev=notesText;notesText='';$('notesArea').value='';store(NOTES_KEY,'');notesMeta();paintNotesBtn();
+  toast('Notas borradas',()=>{notesText=prev;store(NOTES_KEY,prev);paintNotesBtn();if($('notesSheet').classList.contains('show')){$('notesArea').value=prev;notesMeta()}});
+};
+$('notesDone').onclick=()=>{clearTimeout(notesT);store(NOTES_KEY,notesText);paintNotesBtn();closeSheets()};
+paintNotesBtn();
 
 /* ---------- Dinero ---------- */
 const parseMoney=s=>{const n=parseInt(String(s||'').replace(/\D/g,''),10);return n>0?n:0};
@@ -1318,7 +1367,7 @@ $('mDone').onclick=()=>{
 /* ---------- Exportar con elección de destino ---------- */
 function expFile(){
   const name=(($('expName').value||'').trim().replace(/[\\/:*?"<>|]+/g,'-')||`tareas_${ymd(new Date())}`)+'.json';
-  const json=JSON.stringify(data,null,2);
+  const json=JSON.stringify({app:'tareas',version:2,tareas:data,notas:notesText},null,2);
   return {name,json,blob:new Blob([json],{type:'application/json'})};
 }
 function expDone(msg){closeSheets();toast(msg)}
@@ -1358,7 +1407,8 @@ $('expCancel').onclick=closeSheets;
 $('mImport').onclick=()=>$('importFile').click();
 $('importFile').onchange=e=>{
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=()=>{try{const arr=JSON.parse(rd.result);if(!Array.isArray(arr))throw 0;
+  rd.onload=()=>{try{const raw=JSON.parse(rd.result);const arr=Array.isArray(raw)?raw:(raw&&Array.isArray(raw.tareas)?raw.tareas:null);if(!arr)throw 0;
+    if(raw&&typeof raw.notas==='string'&&raw.notas.trim()&&raw.notas!==notesText){notesText=notesText.trim()?notesText.trimEnd()+'\n\n'+raw.notas:raw.notas;store(NOTES_KEY,notesText);paintNotesBtn()}
     const ids=new Set(data.map(x=>x.id));let n=0;
     arr.forEach(x=>{if(x&&x.id&&x.title&&x.date&&!ids.has(x.id)){x.done=x.done||{};x.prio=x.prio||'media';data.push(x);n++}});
     save();render();closeSheets();toast(`${n} tarea(s) importada(s)`)}catch(err){toast('Archivo no válido')}};
