@@ -296,12 +296,12 @@
   .item .th .t{flex:0 1 auto}
   /* v34: nombre compacto, cuota y frecuencia siempre en la misma línea */
   .item .th{flex-wrap:nowrap}
-  .item .th{align-items:flex-start}
-  .item .th .t{font-size:16px;letter-spacing:-.35px;line-height:1.25;white-space:normal;min-width:0;flex:0 1 auto;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-  .item .th{justify-content:space-between;gap:8px}
-  .item .th .tg{align-self:flex-start;margin-top:1px;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}
-  .item .th .tg .amt,.item .th .tg .fq{text-align:center}
+  /* v36: nombre · cuota · frecuencia siempre en una sola fila */
+  .item .th{flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:5px}
+  .item .th .t{font-size:15.5px;letter-spacing:-.4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;display:block}
+  .item .th .tg{flex:0 0 auto;flex-direction:row;align-items:center;gap:4px;margin:0}
+  .th .amt{font-size:13.5px;padding:2px 8px}
+  .th .fq{font-size:13px;padding:1px 7px}
   .th .fq{padding:1px 8px}
   .th .amt,.th .fq{letter-spacing:-.15px}
   /* ===== Próxima cuota en la tarjeta (v30) ===== */
