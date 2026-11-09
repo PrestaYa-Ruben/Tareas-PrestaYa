@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no, interactive-widget=resizes-content">
 <meta name="theme-color" content="#23305F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -274,6 +274,49 @@
   .stepper{grid-template-columns:42px minmax(0,1fr) 42px}
   .fname{min-width:0}.fname .inp{flex:1}
   .dpop-card{max-width:calc(100vw - 32px)}
+  /* ===== Tarjeta reorganizada: nombre · cuota · frecuencia (v31) ===== */
+  .item .th{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
+  .item .th .t{display:block;-webkit-line-clamp:unset;overflow:visible;flex:0 1 auto;min-width:0;word-break:break-word}
+  .item .th .tg{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;white-space:nowrap}
+  .th .amt{flex:0 0 auto;font-size:12.5px;color:var(--navy);font-weight:700;background:#FFF3B8;padding:2px 9px;border-radius:999px;line-height:1.35}
+  .th .fq{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:#5B73D1;background:#fff;border:1px solid #C9D3F2;padding:1px 8px 1px 6px;border-radius:999px;line-height:1.35}
+  .th .fq svg{width:13px;height:13px}
+  .item.done .th .amt{background:var(--green-soft);color:var(--green)}
+  .item.done .th .fq{color:var(--muted-2);border-color:var(--border)}
+  .nxrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px;min-width:0}
+  .nxrow .nx{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;font-size:13px;color:var(--navy);font-weight:600}
+  .nxrow .nx svg{flex:0 0 auto}
+  .nxrow .nx em{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nxrow .nx.last{color:var(--green)}
+  .item.done .nxrow .nx{color:var(--muted-2)}
+  .item{gap:10px}
+  .item .chk{width:40px}
+  .nxrow .count{flex:0 0 auto;margin-left:auto;padding:5px 14px;font-size:12px;min-width:64px;justify-content:center}
+  .item{padding-right:12px}
+  .item .th .t{flex:0 1 auto}
+  /* ===== Próxima cuota en la tarjeta (v30) ===== */
+  .meta .nx{color:var(--navy);font-weight:600}
+  .meta .nx svg{color:var(--navy)}
+  .meta .nx.last{color:var(--green)}
+  .meta .nx.last svg{color:var(--green)}
+  .item.done .meta .nx{color:var(--muted-2)}
+  .item.done .meta .nx svg{color:var(--muted-2)}
+  /* ===== Confeti al completar una tarea (v29) ===== */
+  .chk.pop span{animation:chkPop .5s cubic-bezier(.3,1.8,.5,1)}
+  @keyframes chkPop{0%{transform:scale(.6)}55%{transform:scale(1.25);box-shadow:0 0 0 8px rgba(34,160,107,.18)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(34,160,107,0)}}
+  @media (prefers-reduced-motion:reduce){.chk.pop span{animation:none}}
+  /* ===== Sin zoom por doble toque en iPhone (v28) ===== */
+  html,body{touch-action:manipulation}
+  button,a,label,input,select,textarea,.item,.day,.occ,.dest,.dsel,.pill,.chk,.count{touch-action:manipulation}
+  .cal,.grid{touch-action:pan-y}
+  /* ===== Valor de la cuota (v27) ===== */
+  .money{position:relative}
+  .money span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;font-size:16px;pointer-events:none}
+  .money .inp{padding-left:28px!important;font-weight:600}
+  label.f .opt{font-weight:400;color:var(--muted-2)}
+  .meta .amt{color:var(--navy);font-weight:700;background:#FFF3B8;padding:1px 8px;border-radius:999px}
+  .item.done .meta .amt{background:var(--green-soft);color:var(--green)}
+  #datesSheet .occ-sub b{color:var(--navy);font-weight:600}
   /* ===== Nota visible en la tarjeta (v26) ===== */
   .item .nt{display:flex;gap:5px;align-items:flex-start;margin-top:3px;font-size:13.5px;line-height:1.35;color:#4B5468}
   .item .nt svg{flex:0 0 auto;margin-top:2px;color:var(--muted)}
@@ -383,6 +426,8 @@
   <h3 id="formTitle">Nueva tarea</h3>
   <label class="f" for="fTitle">Tarea</label>
   <input class="inp" id="fTitle" placeholder="Ej: Cobrar a Luis Marín" maxlength="100">
+  <label class="f" for="fAmount">Valor de la cuota <span class="opt">(opcional)</span></label>
+  <div class="money"><span>$</span><input class="inp" id="fAmount" inputmode="numeric" placeholder="0" autocomplete="off" maxlength="15"></div>
   <div class="row">
     <div><label class="f" for="fDate">Fecha</label><input class="inp" type="date" id="fDate"></div>
     <div><label class="f" for="fTime">Hora (opcional)</label><input class="inp" type="time" id="fTime"></div>
@@ -647,6 +692,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 const REP_TXT={daily:'Diaria',weekdays:'L a V',weekly:'Semanal',monthly:'Mensual'};
 
 const I={
+  cal:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>`,
   check:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
   clock:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
   bell:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2h16z"/><path d="M10 20a2 2 0 004 0"/></svg>`,
@@ -663,7 +709,13 @@ let lastTap=null,dotPrev=null,celebrateArm=false;
 function cascade(g){if(RM)return;g.classList.remove('cascade');void g.offsetWidth;g.classList.add('cascade');clearTimeout(g._ct);g._ct=setTimeout(()=>g.classList.remove('cascade'),900)}
 function burst(btn){
   if(RM||!btn)return;
-  const r=btn.querySelector('.n').getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  burstAt(btn.querySelector('.n').getBoundingClientRect());
+  btn.classList.add('flash');
+}
+/* Confeti + ✨ en cualquier punto de la pantalla */
+function burstAt(r){
+  if(RM||!r)return;
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;
   const C=['#FFD102','#22A06B','#5B73D1','#E0474C','#23305F','#7FD3A8'];
   for(let i=0;i<22;i++){
     const d=document.createElement('i');d.className='conf';d.style.background=C[i%C.length];
@@ -678,7 +730,6 @@ function burst(btn){
   }
   const s=document.createElement('span');s.className='spark';s.textContent='✨';s.style.left=cx+'px';s.style.top=(cy-6)+'px';document.body.appendChild(s);
   s.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:0},{transform:'translate(-50%,-150%) scale(1.3)',opacity:1,offset:.4},{transform:'translate(-50%,-230%) scale(1)',opacity:0}],{duration:1000,easing:'ease-out'}).onfinish=()=>s.remove();
-  btn.classList.add('flash');
 }
 function renderCal(){
   $('calTitle').textContent=fMonth(view).replace(/^./,c=>c.toUpperCase());
@@ -744,24 +795,25 @@ function periodDays(){
 }
 function cardHTML(x){
   const t=x.t,done=isDone(t,x.key);
-  let meta='',badge='';
+  let meta='',badge='',tags='';
+  if(t.amount)tags+=`<span class="amt">${fmtMoney(t.amount)}</span>`;
+  const fq=freqText(t);if(fq)tags+=`<span class="fq">${I.rep}${fq}</span>`;
   if(x.late)meta+=`<span class="red">Atrasada · ${fDayShort(x.day)}</span>`;
   if(x.showDate&&!x.late)meta+=`<span>${fDayShort(x.day)}</span>`;
+  const nx=(x.late||x.showDate)&&!isRule(t)?null:nextInfo(t,x.key);
+  const n0=isRule(t)&&x.key!=='__'?occIndex(t,parseYmd(x.key)):0;
+  const cnt=isRule(t)?`<button class="count" data-id="${t.id}" data-k="${x.key}" aria-label="Ver fechas">${n0?n0+' de '+t.times:t.times+' veces'}</button>`:'';
+  const nxRow=(nx||cnt)?`<div class="nxrow">${nx?`<span class="nx ${nx.last?'last':''}">${I.cal}<em>${nx.txt}</em></span>`:'<span></span>'}${cnt}</div>`:'';
   if(t.time)meta+=`<span>${I.clock}${fTime(t.time)}</span>`;
-  if(isRule(t)){
-    meta+=`<span>${I.rep}${ruleText(t)}</span>`;
-    const n=x.key!=='__'?occIndex(t,parseYmd(x.key)):0;
-    badge=`<button class="count" data-id="${t.id}" data-k="${x.key}" aria-label="Ver fechas">${n?n+' de '+t.times:t.times+' veces'}</button>`;
-  }else if(isRep(t))meta+=`<span>${I.rep}${REP_TXT[t.repeat]}</span>`;
   if(t.alarm&&t.time)meta+=`<span>${I.bell}</span>`;
   return `<div class="item ${done?'done':''} ${x.late?'late':''}">
     <button class="chk" data-id="${t.id}" data-k="${x.key}" aria-label="Marcar como hecha"><span>${I.check}</span></button>
     <div class="body" data-id="${t.id}" data-k="${x.key}">
-      <div class="t">${esc(t.title)}</div>
+      <div class="th"><span class="t">${esc(t.title)}</span>${tags?`<span class="tg">${tags}</span>`:''}</div>
       ${t.notes?`<div class="nt">${I.note}<span>${esc(t.notes)}</span></div>`:''}
+      ${nxRow}
       ${meta?`<div class="meta">${meta}</div>`:''}
     </div>
-    ${badge}
   </div>`;
 }
 function renderList(){
@@ -790,7 +842,7 @@ function renderList(){
     if(!html)html=`<div class="empty-msg">Aún no tienes tareas.</div>`;
   }
   $('list').innerHTML=html;
-  $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k));
+  $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k,b));
   $('list').querySelectorAll('.body').forEach(b=>b.onclick=()=>openForm(b.dataset.id,b.dataset.k));
   $('list').querySelectorAll('.count').forEach(b=>b.onclick=()=>openDates(b.dataset.id,b.dataset.k));
 }
@@ -811,6 +863,42 @@ function renderSummary(){
   $('sumSub').textContent=!total?'Sin tareas registradas':ok?'¡Todo listo! 🎉':`${pend} pendiente${pend>1?'s':''} · ${pct}% completado`;
   $('sumBar').style.width=pct+'%';$('sumBar').classList.toggle('ok',ok);
 }
+
+/* ---------- Próxima cuota / fecha de la tarea ---------- */
+const fNx=d=>{const w=DIA[d.getDay()].slice(0,3),y=d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'';return `${w[0].toUpperCase()+w.slice(1)} ${d.getDate()} ${MES[d.getMonth()].slice(0,3)}${y}`};
+function nextInfo(t,key){
+  const lbl=t.amount?'cuota':'fecha';
+  if(isRule(t)){
+    const L=genList(t).filter(k=>!(t.skip&&t.skip[k]));
+    const i=key&&key!=='__'?L.indexOf(key):-1;
+    const after=(i>=0?L.slice(i+1):L).filter(k=>!isDone(t,k));
+    if(after.length)return {txt:`Próx. ${lbl}: ${fNx(parseYmd(effDate(t,after[0])))}`};
+    return {txt:i===L.length-1?(t.amount?'Última cuota':'Última repetición'):'Sin más pendientes',last:true};
+  }
+  if(!isRep(t)&&t.date)return {txt:`${t.amount?'Fecha de pago':'Fecha'}: ${fNx(parseYmd(t.date))}`};
+  return null;
+}
+
+/* Frecuencia corta para la tarjeta: Quincenal, Mensual, Semanal… */
+function freqText(t){
+  switch(t.repeat){
+    case 'every':return t.every===1?'Diaria':t.every===7?'Semanal':t.every===15?'Quincenal':t.every===30?'Mensual':`Cada ${t.every} días`;
+    case 'week':return 'Semanal';
+    case 'fortnight':return 'Quincenal';
+    case 'month':return 'Mensual';
+    case 'year':return 'Anual';
+    case 'daily':return 'Diaria';
+    case 'weekdays':return 'Lun a vie';
+    case 'weekly':return 'Semanal';
+    case 'monthly':return 'Mensual';
+  }
+  return '';
+}
+
+/* ---------- Dinero ---------- */
+const parseMoney=s=>{const n=parseInt(String(s||'').replace(/\D/g,''),10);return n>0?n:0};
+const fmtMoney=n=>'$'+Number(n).toLocaleString('es-CO');
+$('fAmount').oninput=()=>{const n=parseMoney($('fAmount').value);$('fAmount').value=n?n.toLocaleString('es-CO'):''};
 
 /* ---------- Búsqueda ---------- */
 let query='';
@@ -839,7 +927,7 @@ function renderSearch(){
   $('clearDay').style.display='none';
   $('list').innerHTML=res.length?res.map(cardHTML).join('')
     :`<div class="empty-msg">No se encontró ninguna tarea con “${esc(query.trim())}”.</div>`;
-  $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k));
+  $('list').querySelectorAll('.chk').forEach(b=>b.onclick=()=>toggleDone(b.dataset.id,b.dataset.k,b));
   $('list').querySelectorAll('.body').forEach(b=>b.onclick=()=>openForm(b.dataset.id,b.dataset.k));
   $('list').querySelectorAll('.count').forEach(b=>b.onclick=()=>openDates(b.dataset.id,b.dataset.k));
 }
@@ -852,11 +940,18 @@ function render(){
 }
 
 /* ---------- Acciones ---------- */
-function toggleDone(id,key){
+function toggleDone(id,key,el){
+  const rect=el?el.querySelector('span').getBoundingClientRect():null;
   const t=data.find(x=>x.id===id);if(!t||key==='__')return;
   t.done=t.done||{};
-  if(t.done[key])delete t.done[key];else{t.done[key]=Date.now();celebrateArm=true;if(navigator.vibrate)navigator.vibrate(25)}
+  let justDone=false;
+  if(t.done[key])delete t.done[key];else{t.done[key]=Date.now();celebrateArm=true;justDone=true;if(navigator.vibrate)navigator.vibrate(25)}
   save();render();
+  if(justDone){
+    const nb=document.querySelector(`#list .chk[data-id="${id}"][data-k="${key}"]`);
+    if(nb&&!RM){nb.classList.add('pop');burstAt(nb.querySelector('span').getBoundingClientRect())}
+    else if(rect)burstAt(rect);
+  }
 }
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function currentDateKey(){return ymd(selDay||(filter==='mes'&&view.getMonth()!==new Date().getMonth()?view:new Date()))}
@@ -1044,6 +1139,7 @@ function openForm(id,key){
   $('fAlarm').checked=t?!!t.alarm:false;
   $('fBefore').value=String(t?.before??0);
   $('fNotes').value=t?.notes||'';
+  $('fAmount').value=t?.amount?Number(t.amount).toLocaleString('es-CO'):'';
   paintEvery();
   $('beforeWrap').style.display=$('fAlarm').checked?'block':'none';
   $('delBtn').style.display=t?'block':'none';
@@ -1066,7 +1162,7 @@ $('saveBtn').onclick=()=>{
   const rec={id:editId||newId(),title,date:keepSeries?old.date:date,moved:formEvery?moved:{},skip:formEvery?{...(old?.skip||{})}:{},time:$('fTime').value,
     repeat:formEvery?$('fType').value:'none',every:formEvery&&$('fType').value==='every'?clampE($('fEvery').value):0,times:formEvery?times:1,
     wday:+$('fWday').value,d1:+$('fD1').value,d2:+$('fD2').value,mday:+($('fType').value==='year'?$('fYday').value:$('fMday').value),month:+$('fYmon').value,
-    alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),done:old?.done||{}};
+    alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),amount:parseMoney($('fAmount').value),done:old?.done||{}};
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
   let fortReset=false;
   if(rec.repeat==='fortnight'){const q=q1();if(!keepSeries)rec.date=q;else if(q!==old.date){rec.date=q;rec.moved={};rec.skip={};fortReset=true}}
@@ -1183,6 +1279,8 @@ function openDates(id,curKey){
   }
   $('datesTitle').textContent=t.title;
   $('datesSub').textContent=`${ruleText(t)} · ${L.length} veces · ${done} hecha${done===1?'':'s'}`;
+  if(t.amount){const act=L.filter(k=>!(t.skip&&t.skip[k])).length;
+    $('datesSub').innerHTML+=`<br>Cuota <b>${fmtMoney(t.amount)}</b> · Pagado <b>${fmtMoney(done*t.amount)}</b> de <b>${fmtMoney(act*t.amount)}</b>`}
   $('datesList').innerHTML=html;
   $('datesList').querySelectorAll('.occ').forEach(b=>b.onclick=()=>{
     const d=parseYmd(b.dataset.d);selDay=d;view=new Date(d.getFullYear(),d.getMonth(),1);closeSheets();render();
@@ -1294,6 +1392,21 @@ function checkAlarms(){
 
 /* ---------- Arranque ---------- */
 render();checkAlarms();
+/* iPhone: bloquear zoom por pellizco y por doble toque (Safari ignora user-scalable=no) */
+(()=>{
+  ['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+  document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
+  let lastT=0;
+  document.addEventListener('touchend',e=>{
+    const now=Date.now();
+    if(now-lastT<350&&!e.target.closest('input,textarea,select,[contenteditable]')){
+      e.preventDefault();
+      const t=e.changedTouches[0];e.target.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window,clientX:t.clientX,clientY:t.clientY}));
+    }
+    lastT=now;
+  },{passive:false});
+  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+})();
 (()=>{const c=document.querySelector('.cal');if(!RM){c.classList.add('enter');setTimeout(()=>c.classList.remove('enter'),700)}cascade($('calGrid'))})();
 let lastDay=ymd(new Date());
 setInterval(()=>{checkAlarms();if(ymd(new Date())!==lastDay){lastDay=ymd(new Date());render()}},30000);
