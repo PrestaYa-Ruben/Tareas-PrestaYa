@@ -1,6 +1,6 @@
 // Tareas del Día · Service Worker
 // Al publicar una versión nueva cambia el número de CACHE: la app mostrará el aviso "Nueva actualización · ACTUALIZAR".
-const CACHE = 'tareas-v46';
+const CACHE = 'tareas-v47';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
