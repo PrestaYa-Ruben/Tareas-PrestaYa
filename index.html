@@ -261,14 +261,15 @@
   #expSheet .btn{height:44px;font-size:15px;margin-top:6px}
   /* ===== Corrección zoom y desbordamiento (v20) ===== */
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-  html,body{overflow-x:hidden;max-width:100%}
-  body.modal-open{overflow:hidden}
+  html{overflow-x:hidden;overflow-x:clip}
+  body{max-width:100%}
   input,select,textarea{font-size:16px !important;max-width:100%;min-width:0}
   .inp{min-width:0;width:100%}
   input[type=date].inp,input[type=time].inp{-webkit-appearance:none;appearance:none;display:block;line-height:normal;text-align:left}
   input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left}
   .row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .row>*{min-width:0}
+  .backdrop,.dpop{touch-action:none;overscroll-behavior:none}
   .sheet{width:100%;max-height:92vh;max-height:92dvh;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .sheet *{max-width:100%}
   .stepper{grid-template-columns:42px minmax(0,1fr) 42px}
@@ -1025,8 +1026,25 @@ $('quickForm').onsubmit=e=>{
 };
 
 /* ---------- Formulario ---------- */
-function openSheet(id){$('backdrop').classList.add('show');$(id).classList.add('show');$(id).scrollTop=0;document.body.classList.add('modal-open')}
-function closeSheets(){$('backdrop').classList.remove('show');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));document.body.classList.remove('modal-open')}
+/* Fondo quieto con ventana abierta: se bloquea el arrastre fuera de la ventana y el "rebote" que pasa al fondo */
+let modalOpen=false;
+(()=>{
+  let y0=0;
+  const scroller=el=>{const s=el&&el.closest&&el.closest('.sheet.show');return s&&s.scrollHeight>s.clientHeight+1?s:null};
+  const anyOpen=()=>modalOpen||document.querySelector('.sheet.show')||$('dayPop').classList.contains('show');
+  document.addEventListener('touchstart',e=>{y0=e.touches[0].clientY},{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!anyOpen())return;
+    if(e.target.closest&&e.target.closest('textarea')){const ta=e.target.closest('textarea');if(ta.scrollHeight>ta.clientHeight+1)return}
+    const s=scroller(e.target);
+    if(!s){e.preventDefault();return}
+    const dy=e.touches[0].clientY-y0;
+    if((dy>0&&s.scrollTop<=0)||(dy<0&&s.scrollTop+s.clientHeight>=s.scrollHeight-1))e.preventDefault();
+  },{passive:false});
+  document.addEventListener('wheel',e=>{if(anyOpen()&&!scroller(e.target)&&!(e.target.closest&&e.target.closest('textarea')))e.preventDefault()},{passive:false});
+})();
+function openSheet(id){$('backdrop').classList.add('show');$(id).classList.add('show');$(id).scrollTop=0;modalOpen=true}
+function closeSheets(){$('backdrop').classList.remove('show');document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));modalOpen=false}
 let formEvery=0;
 const clampE=v=>Math.max(1,Math.min(30,Math.round(+v)||1));
 function readEvery(){formEvery=$('fRep').checked?($('fType').value==='every'?clampE($('fEvery').value):1):0}
