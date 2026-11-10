@@ -339,6 +339,21 @@
   .notes-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--muted)}
   .notes-clear{border:none;background:none;color:var(--red);font-size:13px;font-weight:600;padding:6px 2px}
   #notesSheet .btn{height:46px;font-size:15px;margin-top:10px}
+  /* ===== Aviso de nueva actualización (v46) ===== */
+  .upd{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 72px);max-width:536px;margin:0 auto;z-index:75;
+    display:flex;align-items:center;gap:10px;padding:10px 8px 10px 12px;border-radius:16px;background:var(--navy);color:#fff;
+    box-shadow:0 10px 28px rgba(20,30,70,.35);transform:translateY(-180%);opacity:0;transition:transform .35s cubic-bezier(.3,1.3,.5,1),opacity .25s;pointer-events:none}
+  .upd.show{transform:none;opacity:1;pointer-events:auto}
+  .upd-ic{flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.12);display:grid;place-items:center;color:#FFD102}
+  .upd.show .upd-ic svg{animation:updSpin 1.6s ease-in-out infinite}
+  @keyframes updSpin{0%,60%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  .upd-tx{flex:1;min-width:0}
+  .upd-tx b{display:block;font-size:14.5px;font-weight:700}
+  .upd-tx small{display:block;font-size:12px;opacity:.8}
+  .upd-btn{flex:0 0 auto;border:none;border-radius:11px;background:#FFD102;color:var(--navy);font-weight:800;font-size:13px;letter-spacing:.3px;padding:10px 12px}
+  .upd-btn:disabled{opacity:.8}
+  .upd-x{flex:0 0 auto;width:30px;height:30px;border:none;background:none;color:#fff;opacity:.7;font-size:22px;line-height:1;padding:0}
+  .app-ver{text-align:center;font-size:12px;color:var(--muted-2);margin-top:10px}
   /* ===== Valor de la cuota (v27) ===== */
   .money{position:relative}
   .money span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;font-size:16px;pointer-events:none}
@@ -611,6 +626,7 @@
   <button class="menu-item red" id="mClear">🗑️&nbsp; Borrar todas las tareas</button>
   <input type="file" id="importFile" accept="application/json" hidden>
   <button class="btn ghost" id="menuClose">Cerrar</button>
+  <div class="app-ver">Tareas del Día · versión <span id="appVer"></span></div>
 </div>
 
 <div class="dpop" id="dayPop"><div class="dpop-card">
@@ -625,9 +641,17 @@
   <button type="button" class="mc-close" id="mcClose">Cerrar</button>
 </div></div>
 
+<div class="upd" id="updBar" role="alert">
+  <div class="upd-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></div>
+  <div class="upd-tx"><b>Nueva actualización</b><small>Hay una versión nueva de la app</small></div>
+  <button type="button" class="upd-btn" id="updBtn">ACTUALIZAR</button>
+  <button type="button" class="upd-x" id="updX" aria-label="Más tarde">×</button>
+</div>
+
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn" style="display:none">DESHACER</button></div>
 
 <script>
+const APP_VERSION='46';
 const KEY='tareas_v1', SENT_KEY='tareas_avisos_v1', CAL_KEY='tareas_cal_abierto';
 const PRIO_ORDER={alta:0,media:1,baja:2};
 const $=id=>document.getElementById(id);
@@ -824,7 +848,9 @@ function renderCal(){
 /* ---------- Lista ---------- */
 function sortItems(a,b){
   const da=isDone(a.t,a.key),db=isDone(b.t,b.key);
-  if(da!==db)return da?1:-1;
+  // Las realizadas van arriba: la última que marcaste queda de primera
+  if(da!==db)return da?-1:1;
+  if(da&&db)return (+b.t.done[b.key]||0)-(+a.t.done[a.key]||0);
   const ta=a.t.time||'99:99',tb=b.t.time||'99:99';
   if(ta!==tb)return ta<tb?-1:1;
   return PRIO_ORDER[a.t.prio||'media']-PRIO_ORDER[b.t.prio||'media'];
@@ -986,7 +1012,7 @@ function renderSearch(){
   const res=data.filter(t=>norm(t.title).includes(q)||norm(t.notes).includes(q))
     .map(t=>{const s=searchKey(t);return {t,key:s.key,day:s.day,showDate:true,
       late:!isRep(t)&&s.day<todayD()&&!isDone(t,s.key)}})
-    .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?1:-1;return a.day-b.day});
+    .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?-1:1;if(da&&db)return (+b.t.done[b.key]||0)-(+a.t.done[a.key]||0);return a.day-b.day});
   $('listTitle').textContent=`Resultados (${res.length})`;
   $('clearDay').style.display='none';
   $('list').innerHTML=res.length?res.map(cardHTML).join('')
@@ -1411,7 +1437,7 @@ function openDates(id,curKey){
 $('datesClose').onclick=closeSheets;
 
 /* ---------- Menú ---------- */
-$('menuBtn').onclick=()=>openSheet('menuSheet');$('menuClose').onclick=closeSheets;
+$('menuBtn').onclick=()=>{$('appVer').textContent=APP_VERSION;openSheet('menuSheet')};$('menuClose').onclick=closeSheets;
 $('mNotif').onclick=()=>{askNotif();closeSheets()};
 $('mDone').onclick=()=>{
   const before=data.length;
@@ -1531,8 +1557,30 @@ render();checkAlarms();
 let lastDay=ymd(new Date());
 setInterval(()=>{checkAlarms();if(ymd(new Date())!==lastDay){lastDay=ymd(new Date());render()}},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();checkAlarms()}});
+/* ---------- Aviso de nueva actualización ---------- */
+let updWorker=null,updating=false;
+function showUpdate(w){
+  updWorker=w;
+  try{if(sessionStorage.getItem('upd_later')===w.scriptURL+'|'+APP_VERSION)return}catch(e){}
+  $('updBar').classList.add('show');
+}
+$('updBtn').onclick=()=>{
+  if(!updWorker){location.reload();return}
+  updating=true;$('updBtn').textContent='ACTUALIZANDO…';$('updBtn').disabled=true;
+  updWorker.postMessage({type:'SKIP_WAITING'});
+  setTimeout(()=>location.reload(),4000);
+};
+$('updX').onclick=()=>{$('updBar').classList.remove('show');try{sessionStorage.setItem('upd_later',(updWorker?updWorker.scriptURL:'')+'|'+APP_VERSION)}catch(e){}};
 if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(updating){updating=false;location.reload()}});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+    const ask=w=>{if(w&&navigator.serviceWorker.controller)showUpdate(w)};
+    if(reg.waiting)ask(reg.waiting);
+    reg.addEventListener('updatefound',()=>{const w=reg.installing;if(w)w.addEventListener('statechange',()=>{if(w.state==='installed')ask(w)})});
+    const check=()=>reg.update().catch(()=>{});
+    setTimeout(check,3000);setInterval(check,20*60*1000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
+  }).catch(()=>{});
 }
 </script>
 </body>
