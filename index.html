@@ -284,9 +284,9 @@
   .item.done .th .amt{background:var(--green-soft);color:var(--green)}
   .item.done .th .fq{color:var(--muted-2);border-color:var(--border)}
   .nxrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px;min-width:0}
-  .nxrow .nx{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;font-size:13px;color:var(--navy);font-weight:600}
+  .nxrow .nx{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;font-size:12.5px;letter-spacing:-.15px;color:var(--navy);font-weight:600}
   .nxrow .nx svg{flex:0 0 auto}
-  .nxrow .nx em{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nxrow .nx em{font-style:normal;white-space:normal;line-height:1.25}
   .nxrow .nx.last{color:var(--green)}
   .item.done .nxrow .nx{color:var(--muted-2)}
   .item{gap:10px}
@@ -907,14 +907,14 @@ function renderSummary(){
 }
 
 /* ---------- Próxima cuota / fecha de la tarea ---------- */
-const fNx=d=>{const w=DIA[d.getDay()].slice(0,3),y=d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'';return `${w[0].toUpperCase()+w.slice(1)} ${d.getDate()} ${MES[d.getMonth()].slice(0,3)}${y}`};
+const fNx=d=>{const w=DIA[d.getDay()],y=d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'';return `${w[0].toUpperCase()+w.slice(1)} ${d.getDate()} de ${MES[d.getMonth()].slice(0,3)}${y}`};
 function nextInfo(t,key){
   const lbl=t.amount?'cuota':'fecha';
   if(isRule(t)){
     const L=genList(t).filter(k=>!(t.skip&&t.skip[k]));
     const i=key&&key!=='__'?L.indexOf(key):-1;
     const after=(i>=0?L.slice(i+1):L).filter(k=>!isDone(t,k));
-    if(after.length)return {txt:`Próx. ${lbl}: ${fNx(parseYmd(effDate(t,after[0])))}`};
+    if(after.length)return {txt:`Próxima: ${fNx(parseYmd(effDate(t,after[0])))}`};
     return {txt:i===L.length-1?(t.amount?'Última cuota':'Última repetición'):'Sin más pendientes',last:true};
   }
   if(!isRep(t)&&t.date)return {txt:`${t.amount?'Fecha de pago':'Fecha'}: ${fNx(parseYmd(t.date))}`};
