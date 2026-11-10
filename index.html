@@ -470,7 +470,7 @@
     <label class="f">Al cambiar la fecha, mover</label>
     <div class="seg6 two" id="scopeSeg">
       <button type="button" data-s="one">Solo esta</button>
-      <button type="button" data-s="all">Todas</button>
+      <button type="button" data-s="all">Esta y siguientes</button>
     </div>
   </div>
   <div class="hint" id="dateHint"></div>
@@ -1181,12 +1181,38 @@ function paintScope(){
   if(occMode){
     $('dateHint').textContent=scope==='one'
       ?`Solo se moverá esta repetición${occN?' ('+occN+' de '+$('fTimes').value+')':''}. Las demás se quedan igual.`
-      :'Se moverán todas las repeticiones los mismos días, manteniendo el intervalo.';
-    $('tomorrowBtn').textContent=scope==='one'?'Pasar esta repetición a mañana':'Pasar todas un día';
+      :'Se moverán esta cuota y las siguientes pendientes, cada una lo que le corresponde según su frecuencia. Las pagadas y las anteriores no se mueven.';
+    $('tomorrowBtn').textContent=scope==='one'?'Pasar esta repetición a mañana':'Pasar esta y las siguientes un día';
   }
 }
 document.querySelectorAll('#scopeSeg button').forEach(b=>b.onclick=()=>{scope=b.dataset.s;paintScope()});
 /* Mueve todas las repeticiones: ajusta la regla y reubica checks/movidas por posición */
+/* Nueva secuencia de fechas a partir de A siguiendo la misma frecuencia de la tarea */
+function seqFrom(t,A,count){
+  const r={id:'__seq',date:ymd(A),times:count,repeat:t.repeat};
+  if(t.repeat==='every')r.every=t.every||1;
+  else if(t.repeat==='week')r.wday=A.getDay();
+  else if(t.repeat==='month')r.mday=A.getDate();
+  else if(t.repeat==='year'){r.mday=A.getDate();r.month=A.getMonth()}
+  else if(t.repeat==='fortnight'){
+    // conserva el patrón de días de la tarea si la nueva fecha cae en uno de ellos; si no, usa la fecha y 15 días después
+    const a=A.getDate(),dim=dimOf(A.getFullYear(),A.getMonth()),d1=Math.min(+t.d1||1,dim),d2=Math.min(+t.d2||1,dim);
+    if(a===d1||a===d2){r.d1=t.d1;r.d2=t.d2}else{r.d1=a;r.d2=addDays(A,15).getDate()}
+  }
+  _cache.delete('__seq');const L=genList(r);_cache.delete('__seq');return L;
+}
+/* Mueve la cuota `key` a `newDate` y corre las siguientes pendientes en su orden; las anteriores y las pagadas no se tocan */
+function moveFrom(t,key,newDate){
+  if(!isRule(t))return;
+  const L=genList(t),n=L.indexOf(key);if(n<0)return;
+  const seq=seqFrom(t,parseYmd(newDate),L.length-n);
+  t.moved=t.moved||{};
+  for(let i=n;i<L.length;i++){
+    const k=L[i];if(i!==n&&isDone(t,k))continue;
+    const nd=seq[i-n];if(!nd)continue;
+    if(nd===k)delete t.moved[k];else t.moved[k]=nd;
+  }
+}
 function moveAll(t,n,anchor){
   if(!n)return;
   if(t.repeat==='every'){shiftSeries(t,n);return}
@@ -1259,17 +1285,17 @@ $('saveBtn').onclick=()=>{
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
   let fortReset=false;
   if(rec.repeat==='fortnight'){const q=q1();if(!keepSeries)rec.date=q;else if(q!==old.date){rec.date=q;rec.moved={};rec.skip={};fortReset=true}}
-  if(keepSeries&&scope==='all'&&!fortReset)moveAll(rec,delta,parseYmd(date));
+  if(keepSeries&&scope==='all'&&!fortReset&&delta)moveFrom(rec,editKey,date);
   if(old)data=data.map(x=>x.id===editId?rec:x);else data.push(rec);
   save();closeSheets();render();
-  toast(keepSeries&&delta?(scope==='all'?`Todas movidas ${Math.abs(delta)} día${Math.abs(delta)>1?'s':''} ${delta>0?'adelante':'atrás'}`:'Repetición movida a '+fDay(parseYmd(date))):old?'Tarea actualizada':'Tarea guardada');
+  toast(keepSeries&&delta?(scope==='all'?'Se corrieron esta cuota y las siguientes':'Repetición movida a '+fDay(parseYmd(date))):old?'Tarea actualizada':'Tarea guardada');
   if(rec.alarm&&!rec.time)toast('Agrega una hora para recibir el aviso');
   else if(rec.alarm&&'Notification' in window&&Notification.permission==='default')askNotif();
 };
 $('tomorrowBtn').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
   if(occMode){const cur=parseYmd(effDate(t,editKey)),base=cur<todayD()?todayD():cur,nd=ymd(addDays(base,1));
-    if(scope==='all'){moveAll(t,dayDiff(parseYmd(nd),cur),parseYmd(nd));save();closeSheets();render();toast('Todas las repeticiones movidas');return}
+    if(scope==='all'){moveFrom(t,editKey,nd);save();closeSheets();render();toast('Se corrieron esta cuota y las siguientes');return}
     t.moved=t.moved||{};if(nd===editKey)delete t.moved[editKey];else t.moved[editKey]=nd;
     save();closeSheets();render();toast('Repetición pasada a '+fDay(parseYmd(nd)));return}
   const base=parseYmd(t.date)<todayD()?todayD():parseYmd(t.date);
