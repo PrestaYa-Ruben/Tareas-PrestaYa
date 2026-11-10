@@ -658,7 +658,7 @@
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn" style="display:none">DESHACER</button></div>
 
 <script>
-const APP_VERSION='47';
+const APP_VERSION='48';
 const KEY='tareas_v1', SENT_KEY='tareas_avisos_v1', CAL_KEY='tareas_cal_abierto';
 const PRIO_ORDER={alta:0,media:1,baja:2};
 const $=id=>document.getElementById(id);
@@ -853,11 +853,14 @@ function renderCal(){
 }
 
 /* ---------- Lista ---------- */
+/* Última acción sobre la tarjeta: creada, editada o marcada como hecha */
+const lastAct=x=>Math.max(+x.t.upd||0,isDone(x.t,x.key)?(+x.t.done[x.key]||0):0);
 function sortItems(a,b){
+  // Lo más reciente (nueva, editada o realizada) siempre va arriba
+  const sa=lastAct(a),sb=lastAct(b);
+  if(sa!==sb)return sb-sa;
   const da=isDone(a.t,a.key),db=isDone(b.t,b.key);
-  // Las realizadas van arriba: la última que marcaste queda de primera
   if(da!==db)return da?-1:1;
-  if(da&&db)return (+b.t.done[b.key]||0)-(+a.t.done[a.key]||0);
   const ta=a.t.time||'99:99',tb=b.t.time||'99:99';
   if(ta!==tb)return ta<tb?-1:1;
   return PRIO_ORDER[a.t.prio||'media']-PRIO_ORDER[b.t.prio||'media'];
@@ -1019,7 +1022,7 @@ function renderSearch(){
   const res=data.filter(t=>norm(t.title).includes(q)||norm(t.notes).includes(q))
     .map(t=>{const s=searchKey(t);return {t,key:s.key,day:s.day,showDate:true,
       late:!isRep(t)&&s.day<todayD()&&!isDone(t,s.key)}})
-    .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?-1:1;if(da&&db)return (+b.t.done[b.key]||0)-(+a.t.done[a.key]||0);return a.day-b.day});
+    .sort((a,b)=>{const sa=lastAct(a),sb=lastAct(b);if(sa!==sb)return sb-sa;const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?-1:1;return a.day-b.day});
   $('listTitle').textContent=`Resultados (${res.length})`;
   $('clearDay').style.display='none';
   $('list').innerHTML=res.length?res.map(cardHTML).join('')
@@ -1055,7 +1058,7 @@ function currentDateKey(){return ymd(selDay||(filter==='mes'&&view.getMonth()!==
 
 $('quickForm').onsubmit=e=>{
   e.preventDefault();const title=$('quickInp').value.trim();if(!title)return;
-  data.push({id:newId(),title,date:currentDateKey(),time:'',repeat:'none',alarm:false,before:0,notes:'',done:{}});
+  data.push({id:newId(),title,date:currentDateKey(),time:'',repeat:'none',alarm:false,before:0,notes:'',done:{},upd:Date.now()});
   save();$('quickInp').value='';render();toast('Tarea agregada');
 };
 
@@ -1314,7 +1317,7 @@ $('saveBtn').onclick=()=>{
   const rec={id:editId||newId(),title,date:keepSeries?old.date:date,moved:formEvery?moved:{},skip:formEvery?{...(old?.skip||{})}:{},time:$('fTime').value,
     repeat:formEvery?$('fType').value:'none',every:formEvery&&$('fType').value==='every'?clampE($('fEvery').value):0,times:formEvery?times:1,
     wday:+$('fWday').value,d1:+$('fD1').value,d2:+$('fD2').value,mday:+($('fType').value==='year'?$('fYday').value:$('fMday').value),month:+$('fYmon').value,
-    alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),amount:parseMoney($('fAmount').value),done:old?.done||{}};
+    alarm:$('fAlarm').checked,before:+$('fBefore').value,notes:$('fNotes').value.trim(),amount:parseMoney($('fAmount').value),done:old?.done||{},upd:Date.now()};
   if(old&&old.date!==date&&!isRep(rec))rec.done={};
   let fortReset=false;
   if(rec.repeat==='fortnight'){const q=q1();if(!keepSeries)rec.date=q;else if(q!==old.date){rec.date=q;rec.moved={};rec.skip={};fortReset=true}}
@@ -1327,6 +1330,7 @@ $('saveBtn').onclick=()=>{
 };
 $('tomorrowBtn').onclick=()=>{
   const t=data.find(x=>x.id===editId);if(!t)return;
+  t.upd=Date.now();
   if(occMode){const cur=parseYmd(effDate(t,editKey)),base=cur<todayD()?todayD():cur,nd=ymd(addDays(base,1));
     if(scope==='all'){moveFrom(t,editKey,nd);save();closeSheets();render();toast('Se corrieron esta cuota y las siguientes');return}
     t.moved=t.moved||{};if(nd===editKey)delete t.moved[editKey];else t.moved[editKey]=nd;
