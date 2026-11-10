@@ -517,8 +517,6 @@
   <h3 id="formTitle">Nueva tarea</h3>
   <label class="f" for="fTitle">Tarea</label>
   <input class="inp" id="fTitle" placeholder="Ej: Cobrar a Luis Marín" maxlength="100">
-  <label class="f" for="fAmount">Valor de la cuota <span class="opt">(opcional)</span></label>
-  <div class="money"><span>$</span><input class="inp" id="fAmount" inputmode="numeric" placeholder="0" autocomplete="off" maxlength="15"></div>
   <div class="row">
     <div><label class="f" for="fDate">Fecha</label><input class="inp" type="date" id="fDate"></div>
     <div><label class="f" for="fTime">Hora (opcional)</label><input class="inp" type="time" id="fTime"></div>
@@ -583,6 +581,10 @@
       <button type="button" id="tMinus" aria-label="Menos">−</button>
       <input class="inp" type="number" id="fTimes" min="1" max="365" inputmode="numeric">
       <button type="button" id="tPlus" aria-label="Más">+</button>
+    </div>
+    <div id="amtBox">
+      <label class="f" for="fAmount">Valor de la cuota <span class="opt">(opcional)</span></label>
+      <div class="money"><span>$</span><input class="inp" id="fAmount" inputmode="numeric" placeholder="0" autocomplete="off" maxlength="15"></div>
     </div>
     <div class="hint" id="timesHint"></div>
     <div class="pv" id="pvWrap">
@@ -711,7 +713,7 @@
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn" style="display:none">DESHACER</button></div>
 
 <script>
-const APP_VERSION='54';
+const APP_VERSION='55';
 const KEY='tareas_v1', SENT_KEY='tareas_avisos_v1', CAL_KEY='tareas_cal_abierto';
 const PRIO_ORDER={alta:0,media:1,baja:2};
 const $=id=>document.getElementById(id);
@@ -1243,6 +1245,8 @@ $('fType').onchange=()=>{
 ['fWday','fD1','fD2','fMday','fYday','fYmon'].forEach(id=>$(id).onchange=updateTimesHint);
 function paintEvery(){
   $('timesWrap').style.display=$('fRep').checked?'block':'none';
+  // Valor de la cuota: debajo de "Número de veces" si se repite; si no, justo después de "Repetir tarea"
+  if($('fRep').checked)$('timesHint').before($('amtBox'));else $('timesWrap').before($('amtBox'));
   paintType();
   readEvery();updateTimesHint();
 }
