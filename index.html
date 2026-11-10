@@ -658,7 +658,7 @@
 <div class="toast" id="toast"><span id="toastTxt"></span><button id="toastBtn" style="display:none">DESHACER</button></div>
 
 <script>
-const APP_VERSION='48';
+const APP_VERSION='49';
 const KEY='tareas_v1', SENT_KEY='tareas_avisos_v1', CAL_KEY='tareas_cal_abierto';
 const PRIO_ORDER={alta:0,media:1,baja:2};
 const $=id=>document.getElementById(id);
@@ -856,11 +856,10 @@ function renderCal(){
 /* Última acción sobre la tarjeta: creada, editada o marcada como hecha */
 const lastAct=x=>Math.max(+x.t.upd||0,isDone(x.t,x.key)?(+x.t.done[x.key]||0):0);
 function sortItems(a,b){
-  // Lo más reciente (nueva, editada o realizada) siempre va arriba
-  const sa=lastAct(a),sb=lastAct(b);
-  if(sa!==sb)return sb-sa;
+  // Pendientes arriba (la nueva o editada más reciente de primera); realizadas al final
   const da=isDone(a.t,a.key),db=isDone(b.t,b.key);
-  if(da!==db)return da?-1:1;
+  if(da!==db)return da?1:-1;
+  if(!da){const sa=+a.t.upd||0,sb=+b.t.upd||0;if(sa!==sb)return sb-sa}
   const ta=a.t.time||'99:99',tb=b.t.time||'99:99';
   if(ta!==tb)return ta<tb?-1:1;
   return PRIO_ORDER[a.t.prio||'media']-PRIO_ORDER[b.t.prio||'media'];
@@ -1022,7 +1021,7 @@ function renderSearch(){
   const res=data.filter(t=>norm(t.title).includes(q)||norm(t.notes).includes(q))
     .map(t=>{const s=searchKey(t);return {t,key:s.key,day:s.day,showDate:true,
       late:!isRep(t)&&s.day<todayD()&&!isDone(t,s.key)}})
-    .sort((a,b)=>{const sa=lastAct(a),sb=lastAct(b);if(sa!==sb)return sb-sa;const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?-1:1;return a.day-b.day});
+    .sort((a,b)=>{const da=isDone(a.t,a.key),db=isDone(b.t,b.key);if(da!==db)return da?1:-1;if(!da){const sa=+a.t.upd||0,sb=+b.t.upd||0;if(sa!==sb)return sb-sa}return a.day-b.day});
   $('listTitle').textContent=`Resultados (${res.length})`;
   $('clearDay').style.display='none';
   $('list').innerHTML=res.length?res.map(cardHTML).join('')
